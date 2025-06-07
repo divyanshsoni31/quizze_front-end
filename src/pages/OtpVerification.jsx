@@ -17,9 +17,14 @@ export default function OtpVerification() {
 
     if (otp === '123456') {
       const email = Object.keys(localStorage).find((key) => {
-        const user = JSON.parse(localStorage.getItem(key));
-        return user && user.verified === false;
-      });
+  try {
+    const user = JSON.parse(localStorage.getItem(key));
+    return user && user.verified === false && user.password;
+  } catch {
+    return false;
+  }
+});
+
 
       if (email) {
         const user = JSON.parse(localStorage.getItem(email));

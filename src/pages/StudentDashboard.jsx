@@ -48,7 +48,7 @@ export default function StudentDashboard() {
         <div className="bg-white shadow p-4 text-center rounded" style={{ width: '340px', minHeight: '200px' }}>
           <h3 className="fw-bold">View Results</h3>
           <p>You have done a great job, don't worry!</p>
-          <button className="btn btn-success px-4">View</button>
+          <button className="btn btn-success px-4" onClick={() => navigate('/student-results')}>View</button>
         </div>
       </div>
 

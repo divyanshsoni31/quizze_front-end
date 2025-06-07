@@ -14,17 +14,48 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    const stored = localStorage.getItem(email);
-    if (!stored) return alert("No user found with this email");
-    const user = JSON.parse(stored);
-    if (!user.verified) return alert("Email not verified. Please complete OTP verification.");
-    if (user.password !== password) return alert("Incorrect password");
+const handleLogin = (e) => {
+  e.preventDefault();
 
-    if (user.role === "student") navigate("/student");
-    else navigate("/creator");
-  };
+  try {
+    const stored = localStorage.getItem(email);
+
+    if (!stored) {
+      alert("❌ No user found with this email");
+      return;
+    }
+
+    const user = JSON.parse(stored);
+
+    if (!user.password || !user.role) {
+      alert("⚠️ Invalid user data found.");
+      return;
+    }
+
+    if (!user.verified) {
+      alert("⚠️ Email not verified. Please complete OTP verification.");
+      return;
+    }
+
+    if (user.password !== password) {
+      alert("❌ Incorrect password");
+      return;
+    }
+
+    // ✅ Store session info
+    localStorage.setItem("userEmail", email);
+    localStorage.setItem("userRole", user.role);
+    localStorage.setItem("userName", user.name || "User");
+
+    // ✅ Redirect
+    navigate(user.role === "student" ? "/student" : "/creator");
+
+  } catch (err) {
+    console.error("Login error:", err);
+    alert("Something went wrong while logging in. Please try again.");
+  }
+};
+
 
   return (
     <div

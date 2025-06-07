@@ -47,38 +47,50 @@ export default function Register() {
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-    } else {
-      setErrors({});
-      const userRecord = {
-        email: formData.email,
-        password: formData.password,
-        role: formData.role,
-        verified: false,
-      };
-      localStorage.setItem(formData.email, JSON.stringify(userRecord));
-      navigate('/verify');
-      // console.log("Navigation to OTP triggered");
-      // window.location.href = "/verify";
-
+      return;
     }
+
+    const email = formData.email.toLowerCase();
+    const role = formData.role;
+    const registeredRoles = JSON.parse(localStorage.getItem('registeredRoles')) || {};
+    const existingRole = registeredRoles[email];
+
+    if (existingRole && existingRole !== role) {
+      setErrors({ email: `❌ This email is already registered as ${existingRole}. Cannot register again as ${role}.` });
+      return;
+    }
+
+    setErrors({});
+
+    // ✅ Save user record
+    const userRecord = {
+      email,
+      password: formData.password,
+      role,
+      verified: false,
+      name: `${formData.firstName} ${formData.lastName}`
+    };
+    localStorage.setItem(email, JSON.stringify(userRecord));
+    localStorage.setItem('userEmail', email);
+    localStorage.setItem('userRole', role);
+    localStorage.setItem('userName', userRecord.name);
+
+    // ✅ Save permanent role mapping
+    registeredRoles[email] = role;
+    localStorage.setItem('registeredRoles', JSON.stringify(registeredRoles));
+
+    navigate('/verify');
   };
 
   return (
-    <div
-      className="position-relative d-flex justify-content-center align-items-center"
-      style={{
-        height: '100vh',
-        width: '100vw',
-        background: 'linear-gradient(135deg, #015794, #437FAA)',
-        overflow: 'hidden',
-        padding: '20px',
-      }}
-    >
+    <div className="position-relative d-flex justify-content-center align-items-center"
+      style={{ height: '100vh', width: '100vw', background: 'linear-gradient(135deg, #015794, #437FAA)', overflow: 'hidden', padding: '20px' }}>
+      
       {/* Background Icons */}
-      <img src={pencil} alt="Pencil" className="position-absolute" style={{ top: '5%', left: '5%', width: '175px', opacity: 2, transform: 'rotate(-1deg)' }} />
-      <img src={trophy} alt="Trophy" className="position-absolute" style={{ bottom: '5%', left: '8%', width: '230px', opacity: 2, transform: 'rotate(-32deg)' }} />
-      <img src={question} alt="Question" className="position-absolute" style={{ bottom: '59%', left: '89%', transform: 'translateX(-50%) rotate(73deg)', width: '320px', opacity: 2, zIndex: 0 }} />
-      <img src={bulb} alt="Bulb" className="position-absolute" style={{ bottom: '4%', right: '2%', width: '320px', opacity: 2, transform: 'rotate(-17deg)' }} />
+      <img src={pencil} alt="Pencil" className="position-absolute" style={{ top: '5%', left: '5%', width: '175px', transform: 'rotate(-1deg)' }} />
+      <img src={trophy} alt="Trophy" className="position-absolute" style={{ bottom: '5%', left: '8%', width: '230px', transform: 'rotate(-32deg)' }} />
+      <img src={question} alt="Question" className="position-absolute" style={{ bottom: '59%', left: '89%', transform: 'translateX(-50%) rotate(73deg)', width: '320px' }} />
+      <img src={bulb} alt="Bulb" className="position-absolute" style={{ bottom: '4%', right: '2%', width: '320px', transform: 'rotate(-17deg)' }} />
 
       <div className="bg-light shadow px-4 py-3 position-relative" style={{ width: '100%', maxWidth: '750px', borderRadius: '63px', zIndex: 1 }}>
         <div className="text-center">
@@ -99,7 +111,6 @@ export default function Register() {
                 onChange={handleChange}
                 className={`form-control ${errors[field] ? 'is-invalid' : ''}`}
                 placeholder={field === 'firstName' ? 'First Name' : 'Last Name'}
-                required
               />
               {errors[field] && <div className="invalid-feedback d-block">{errors[field]}</div>}
             </div>
@@ -116,7 +127,6 @@ export default function Register() {
               onChange={handleChange}
               className={`form-control ${errors.email ? 'is-invalid' : ''}`}
               placeholder="Email"
-              required
             />
             {errors.email && <div className="invalid-feedback d-block">{errors.email}</div>}
           </div>
@@ -130,11 +140,10 @@ export default function Register() {
               value={formData.role}
               onChange={handleChange}
               className={`form-select ${errors.role ? 'is-invalid' : ''}`}
-              required
             >
               <option value="">Role</option>
               <option value="student">Student</option>
-              <option value="faculty">Creator</option>
+              <option value="creator">Creator</option>
             </select>
             {errors.role && <div className="invalid-feedback d-block">{errors.role}</div>}
           </div>
@@ -150,7 +159,6 @@ export default function Register() {
               onChange={handleChange}
               className={`form-control ${errors.password ? 'is-invalid' : ''}`}
               placeholder="Password"
-              required
             />
             {errors.password && <div className="invalid-feedback d-block">{errors.password}</div>}
           </div>
@@ -166,7 +174,6 @@ export default function Register() {
               onChange={handleChange}
               className={`form-control ${errors.confirmPassword ? 'is-invalid' : ''}`}
               placeholder="Confirm Password"
-              required
             />
             {errors.confirmPassword && <div className="invalid-feedback d-block">{errors.confirmPassword}</div>}
           </div>
@@ -181,6 +188,7 @@ export default function Register() {
     </div>
   );
 }
+
 
 
 

@@ -7,55 +7,97 @@ export default function PreviewQuiz() {
   const navigate = useNavigate();
   const [quizMeta, setQuizMeta] = useState({});
   const [questions, setQuestions] = useState([]);
+  const [quizCode, setQuizCode] = useState('');
   const [editingIndex, setEditingIndex] = useState(null);
-  const [editData, setEditData] = useState({});
+  const [editData, setEditData] = useState(null);
 
   useEffect(() => {
     const meta = JSON.parse(localStorage.getItem('createdQuizMeta')) || {};
     const manualQs = JSON.parse(localStorage.getItem('createdQuizQuestions')) || [];
     const bankQs = JSON.parse(localStorage.getItem('selectedQuestionBankQuestions')) || [];
     const combined = [...manualQs, ...bankQs.filter(q => !manualQs.find(mq => mq.id === q.id))];
+
     setQuizMeta(meta);
     setQuestions(combined);
+
+    const creatorEmail = localStorage.getItem('userEmail');
+    const quizzesKey = `quizzes_${creatorEmail}`;
+    const existingQuizzes = JSON.parse(localStorage.getItem(quizzesKey)) || [];
+
+    const existing = existingQuizzes.find(q => q.meta.title === meta.title || q.id === meta.id);
+    if (existing) setQuizCode(existing.code);
   }, []);
+
+  const getSubjectName = () => {
+    return quizMeta.subject === 'Other' ? quizMeta.customSubject : quizMeta.subject;
+  };
+
+  const handleFinalize = () => {
+    const creatorEmail = localStorage.getItem('userEmail');
+    const quizzesKey = `quizzes_${creatorEmail}`;
+    const existingQuizzes = JSON.parse(localStorage.getItem(quizzesKey)) || [];
+
+    const existing = existingQuizzes.find(q => q.meta.title === quizMeta.title || q.id === quizMeta.id);
+    const finalCode = existing?.code || quizCode || `QUIZ-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+    const updatedMeta = {
+      ...quizMeta,
+      creatorEmail: creatorEmail,
+    };
+
+    const newQuiz = {
+      id: quizMeta.id || Date.now(),
+      code: finalCode,
+      meta: updatedMeta,
+      questions: questions,
+      createdAt: existing?.createdAt || new Date().toISOString(),
+    };
+
+    const updatedQuizzes = existingQuizzes.filter(q => q.meta.title !== quizMeta.title && q.id !== newQuiz.id);
+    updatedQuizzes.push(newQuiz);
+    localStorage.setItem(quizzesKey, JSON.stringify(updatedQuizzes));
+
+    localStorage.setItem('finalQuizMeta', JSON.stringify({ ...updatedMeta, code: finalCode }));
+    localStorage.setItem('finalQuizQuestions', JSON.stringify(questions));
+    localStorage.setItem('studentAnswers', JSON.stringify({}));
+    localStorage.setItem('fromPage', 'preview');
+
+    navigate('/join-quiz');
+  };
 
   const handleDelete = (index) => {
     const updated = [...questions];
     updated.splice(index, 1);
     setQuestions(updated);
-    localStorage.setItem('createdQuizQuestions', JSON.stringify(updated));
   };
 
-  const handleEdit = (index) => {
+  const handleEditClick = (index) => {
     setEditingIndex(index);
-    setEditData({ ...questions[index] });
-    document.getElementById('editModal').style.display = 'block';
+    setEditData(questions[index]);
   };
 
-  const handleSaveEdit = () => {
+  const handleEditChange = (field, value) => {
+    setEditData({ ...editData, [field]: value });
+  };
+
+  const handleOptionChange = (index, value) => {
+    const updated = [...(editData.options || [])];
+    updated[index] = value;
+    setEditData({ ...editData, options: updated });
+  };
+
+  const handleMatchChange = (index, side, value) => {
+    const updated = [...(editData.options || [])];
+    updated[index] = { ...updated[index], [side]: value };
+    setEditData({ ...editData, options: updated });
+  };
+
+  const saveEdit = () => {
     const updated = [...questions];
     updated[editingIndex] = editData;
     setQuestions(updated);
-    localStorage.setItem('createdQuizQuestions', JSON.stringify(updated));
     setEditingIndex(null);
-    setEditData({});
-    document.getElementById('editModal').style.display = 'none';
-  };
-
-  const handleInputChange = (field, value) => {
-    setEditData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleOptionChange = (i, value) => {
-    const newOptions = [...editData.options];
-    newOptions[i] = value;
-    setEditData(prev => ({ ...prev, options: newOptions }));
-  };
-
-  const handleFinalize = () => {
-    localStorage.setItem('finalQuizMeta', JSON.stringify(quizMeta));
-    localStorage.setItem('finalQuizQuestions', JSON.stringify(questions));
-    navigate('/attempt-quiz');
+    setEditData(null);
   };
 
   return (
@@ -73,69 +115,135 @@ export default function PreviewQuiz() {
         </div>
       </div>
 
-      {/* Meta */}
+      {/* Meta Info */}
       <div className="container mt-4">
         <h2 className="fw-bold">{quizMeta.title || 'Untitled Quiz'}</h2>
-        <p className="text-muted">{quizMeta.description || 'No description provided.'}</p>
-        <div className="d-flex gap-4 text-muted">
+        <p className="text-muted mb-1">{quizMeta.description || 'No description provided.'}</p>
+        <p className="fw-semibold text-dark">📚 Subject: {getSubjectName()}</p>
+        <div className="d-flex gap-4 text-muted flex-wrap">
           <span>📝 Questions: {questions.length}</span>
           <span>⏱ Time: {quizMeta.timeLimit || 0} mins</span>
           <span>📊 Difficulty: {quizMeta.difficulty || 'Not set'}</span>
         </div>
       </div>
 
-      {/* Question List */}
+      {/* Questions */}
       <div className="container my-4 flex-grow-1">
         {questions.map((q, index) => (
           <div key={index} className="card mb-3 shadow-sm">
             <div className="card-body">
-              <div className="d-flex justify-content-between align-items-start">
+              <div className="d-flex justify-content-between align-items-center">
                 <h5 className="card-title mb-2">
                   <span className="badge bg-primary me-2">Q{index + 1}</span>
                   <strong>{q.question}</strong>
                 </h5>
-                <div className="d-flex gap-2">
-                  <button className="btn btn-sm btn-warning" onClick={() => handleEdit(index)}>Edit</button>
-                  <button className="btn btn-sm btn-danger" onClick={() => handleDelete(index)}>Delete</button>
-                </div>
+                {editingIndex !== index && (
+                  <div>
+                    <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleEditClick(index)}>Edit</button>
+                    <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(index)}>Delete</button>
+                  </div>
+                )}
               </div>
 
-              {q.type === 'mcq' && q.options?.map((opt, i) => (
-                <div key={i}><strong>{String.fromCharCode(65 + i)}.</strong> {opt}</div>
-              ))}
-
-              {q.type === 'truefalse' && (
+              {editingIndex === index ? (
                 <>
-                  <div><strong>A.</strong> True</div>
-                  <div><strong>B.</strong> False</div>
-                </>
-              )}
-
-              {q.type === 'fill' && (
-                <p className="text-muted fst-italic">Student will fill in the blank.</p>
-              )}
-
-              {q.type === 'match' && Array.isArray(q.options) && (
-                <>
-                  <p className="text-muted mb-1">Match the following:</p>
-                  {q.options.map((pair, idx) => (
-                    <div className="row mb-2" key={idx}>
-                      <div className="col-md-6"><strong>{`A${idx + 1}`}</strong>: {pair.left}</div>
-                      <div className="col-md-6"><strong>{`${(idx + 1) * 11}`}</strong>: {pair.right}</div>
+                  <input type="text" className="form-control mb-2" value={editData.question} onChange={(e) => handleEditChange('question', e.target.value)} />
+                  {editData.type === 'mcq' && ['A', 'B', 'C', 'D'].map((label, i) => (
+                    <div className="input-group mb-2" key={i}>
+                      <span className="input-group-text">{label}</span>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={editData.options?.[i] || ''}
+                        onChange={(e) => handleOptionChange(i, e.target.value)}
+                      />
                     </div>
                   ))}
+                  {editData.type === 'truefalse' && (
+                    <select className="form-select mb-2" value={editData.correctAnswer} onChange={(e) => handleEditChange('correctAnswer', e.target.value)}>
+                      <option value="">Select</option>
+                      <option value="True">True</option>
+                      <option value="False">False</option>
+                    </select>
+                  )}
+                  {editData.type === 'fill' && (
+                    <input type="text" className="form-control mb-2" value={editData.correctAnswer} onChange={(e) => handleEditChange('correctAnswer', e.target.value)} />
+                  )}
+                  {editData.type === 'match' && (editData.options || []).map((pair, i) => (
+                    <div className="row mb-2" key={i}>
+                      <div className="col">
+                        <input type="text" className="form-control" placeholder={`Left ${i + 1}`} value={pair.left} onChange={(e) => handleMatchChange(i, 'left', e.target.value)} />
+                      </div>
+                      <div className="col">
+                        <input type="text" className="form-control" placeholder={`Right ${i + 1}`} value={pair.right} onChange={(e) => handleMatchChange(i, 'right', e.target.value)} />
+                      </div>
+                    </div>
+                  ))}
+                  <button className="btn btn-sm btn-success mt-2" onClick={saveEdit}>Save</button>
+                </>
+              ) : (
+                <>
+                  {q.type === 'mcq' && q.options?.map((opt, i) => (
+                    <div key={i}><strong>{String.fromCharCode(65 + i)}.</strong> {opt}</div>
+                  ))}
+                  {q.type === 'truefalse' && (
+                    <>
+                      <div><strong>A.</strong> True</div>
+                      <div><strong>B.</strong> False</div>
+                    </>
+                  )}
+                  {q.type === 'fill' && <p className="text-muted fst-italic">Student will fill in the blank.</p>}
+                  {q.type === 'match' && Array.isArray(q.options) && (
+                    <>
+                      <p className="text-muted mb-1">Match the following:</p>
+                      {q.options.map((pair, idx) => (
+                        <div className="row mb-2" key={idx}>
+                          <div className="col-md-6"><strong>{String.fromCharCode(65 + idx)}</strong>: {pair.left}</div>
+                          <div className="col-md-6"><strong>{idx + 1}</strong>: {pair.right}</div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  <p className="mt-2 text-muted">
+                    <strong>Correct:</strong>{" "}
+                    {q.type === 'match'
+                      ? q.options.map((pair, i) => `${String.fromCharCode(65 + i)}-${pair.right}`).join(', ')
+                      : q.correctAnswer}
+                  </p>
                 </>
               )}
-
-              <p className="mt-2 text-muted">
-                <strong>Correct:</strong> {q.correctAnswer}
-              </p>
             </div>
           </div>
         ))}
       </div>
 
+      {/* Final Buttons */}
       <div className="text-center mb-4">
+        {quizCode ? (
+          <>
+            <p className="mb-2">
+              <strong className="text-muted">Quiz Code:</strong>{' '}
+              <span className="fw-bold text-primary">{quizCode}</span>
+            </p>
+            <div className="d-flex justify-content-center gap-3 flex-wrap mb-3">
+              <button className="btn btn-outline-primary" onClick={() => {
+                navigator.clipboard.writeText(quizCode);
+                alert('✅ Quiz code copied to clipboard!');
+              }}>
+                📋 Copy Quiz Code
+              </button>
+              <button className="btn btn-outline-dark" onClick={() => {
+                const link = `${window.location.origin}/join-quiz?code=${quizCode}`;
+                navigator.clipboard.writeText(link);
+                alert('🔗 Join link copied to clipboard!');
+              }}>
+                📎 Copy Join Link
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="text-danger fw-semibold">⚠️ Quiz code will be generated after you finalize the quiz.</p>
+        )}
         <button className="btn btn-success px-4 py-2 fw-bold" onClick={handleFinalize}>
           Finalize Quiz
         </button>
@@ -144,86 +252,19 @@ export default function PreviewQuiz() {
       <footer className="text-center text-muted py-3 bg-light mt-auto w-100">
         © 2025 QUIZZE. All rights reserved.
       </footer>
-
-      {/* EDIT MODAL */}
-      {editingIndex !== null && (
-        <div id="editModal" className="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-flex justify-content-center align-items-center" style={{ zIndex: 9999 }}>
-          <div className="bg-white p-4 rounded shadow" style={{ width: '500px' }}>
-            <h5>Edit Question</h5>
-            <input
-              type="text"
-              className="form-control mb-3"
-              value={editData.question}
-              onChange={e => handleInputChange('question', e.target.value)}
-            />
-
-            {/* Edit inputs based on type */}
-            {editData.type === 'mcq' && (
-              <>
-                {["A", "B", "C", "D"].map((label, i) => (
-                  <input
-                    key={i}
-                    type="text"
-                    className="form-control mb-2"
-                    placeholder={`Option ${label}`}
-                    value={editData.options[i]}
-                    onChange={e => handleOptionChange(i, e.target.value)}
-                  />
-                ))}
-                <input
-                  type="text"
-                  className="form-control mb-2"
-                  placeholder="Correct Option (A/B/C/D)"
-                  value={editData.correctAnswer}
-                  onChange={e => handleInputChange('correctAnswer', e.target.value)}
-                />
-              </>
-            )}
-
-            {editData.type === 'truefalse' && (
-              <select
-                className="form-select mb-2"
-                value={editData.correctAnswer}
-                onChange={e => handleInputChange('correctAnswer', e.target.value)}
-              >
-                <option value="">Select Correct Answer</option>
-                <option value="True">True</option>
-                <option value="False">False</option>
-              </select>
-            )}
-
-            {editData.type === 'fill' && (
-              <input
-                type="text"
-                className="form-control mb-2"
-                placeholder="Correct Answer"
-                value={editData.correctAnswer}
-                onChange={e => handleInputChange('correctAnswer', e.target.value)}
-              />
-            )}
-
-            {editData.type === 'match' && (
-              <textarea
-                className="form-control mb-2"
-                placeholder="Correct Matching: A1-11, A2-22"
-                value={editData.correctAnswer}
-                onChange={e => handleInputChange('correctAnswer', e.target.value)}
-              />
-            )}
-
-            <div className="d-flex justify-content-end gap-2 mt-3">
-              <button className="btn btn-secondary" onClick={() => {
-                setEditingIndex(null);
-                document.getElementById('editModal').style.display = 'none';
-              }}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleSaveEdit}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
 
 
 

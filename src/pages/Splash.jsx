@@ -11,7 +11,7 @@ export default function Splash() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const timer = setTimeout(() => navigate('/login'), 5500);
+    const timer = setTimeout(() => navigate('/login'), 1000);
     return () => clearTimeout(timer);
   }, [navigate]);
 
