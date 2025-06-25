@@ -88,6 +88,8 @@ import ViewResults from './pages/ViewResults';
 import StudentResults from './pages/StudentResults';
 
 import ProtectedRoute from './components/ProtectedRoute';
+import Certificate from './pages/Certificate';
+
 
 function App() {
   return (
@@ -148,6 +150,8 @@ function App() {
         <Route path="/join-quiz" element={<JoinQuiz />} />
         <Route path="/attempt-quiz" element={<AttemptQuiz />} />
         <Route path="/result" element={<ResultPage />} />
+        <Route path="/certificate" element={<Certificate />} />
+
       </Routes>
     </BrowserRouter>
   );

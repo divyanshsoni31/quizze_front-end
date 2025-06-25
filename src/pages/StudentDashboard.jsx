@@ -20,8 +20,8 @@ export default function StudentDashboard() {
       }}
     >
       {/* Background Icons */}
-        <img src={pencil1} alt="Pencil" className="position-absolute" style={{ top: '39%', left: '8%', width: '185px', opacity: 2, transform: 'rotate(-1deg)' }} />
-        <img src={trophy1} alt="Trophy" className="position-absolute" style={{ bottom: '0%', left: '5%', width: '205px', opacity: 3, transform: 'rotate(7deg)' }} />
+        <img src={pencil1} alt="Pencil" className="position-absolute" style={{ top: '43%', left: '4%', width: '185px', opacity: 2, transform: 'rotate(-1deg)' }} />
+        <img src={trophy1} alt="Trophy" className="position-absolute" style={{ bottom: '0%', left: '1%', width: '205px', opacity: 3, transform: 'rotate(7deg)' }} />
         <img src={question1} alt="Question" className="position-absolute" style={{ bottom: '1%', left: '92.5%', transform: 'translateX(-49%) rotate(-2deg)', width: '210px', opacity: 2.5, zIndex: 0 }} />
         <img src={bulb1} alt="Bulb" className="position-absolute" style={{ bottom: '34%', right: '2%', width: '215px', opacity: 2, transform: 'translateX(-19%) rotate(-1deg)' }} />
 

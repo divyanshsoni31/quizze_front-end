@@ -1,8 +1,10 @@
-// File: src/pages/CreateQuiz.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
-
+import bulb1 from '../assets/icon-bulb1.png';
+import pencil1 from '../assets/icon-pencil1.png';
+import trophy1 from '../assets/icon-trophy1.png';
+import question1 from '../assets/icon-question1.png';
 export default function CreateQuiz() {
   const navigate = useNavigate();
   const [questionType, setQuestionType] = useState('');
@@ -16,6 +18,7 @@ export default function CreateQuiz() {
     customSubject: '',
     timeLimit: '',
     difficulty: '',
+    isCertificate: false, // ✅ New field
   });
 
   const [currentQuestion, setCurrentQuestion] = useState({
@@ -34,9 +37,19 @@ export default function CreateQuiz() {
     }
   }, []);
 
-  const handleAddQuestion = (e) => {
-    e.preventDefault();
-    if (!currentQuestion.question || (currentQuestion.type !== 'match' && !currentQuestion.correctAnswer)) return;
+  const handleMetaChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setQuizMeta(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleAddQuestion = () => {
+    if (!currentQuestion.question || (currentQuestion.type !== 'match' && !currentQuestion.correctAnswer)) {
+      alert('Fill all question fields');
+      return;
+    }
 
     const creatorEmail = localStorage.getItem('userEmail');
     const questionWithMeta = {
@@ -47,20 +60,33 @@ export default function CreateQuiz() {
 
     setQuestions(prev => [...prev, questionWithMeta]);
 
-    const subject = quizMeta.subject === "Other" ? quizMeta.customSubject : quizMeta.subject;
+    const subject = quizMeta.subject === 'Other' ? quizMeta.customSubject : quizMeta.subject;
     if (subject) {
       const existing = JSON.parse(localStorage.getItem(`questionBank_${subject}`)) || [];
-      const updatedBank = [...existing, questionWithMeta];
-      localStorage.setItem(`questionBank_${subject}`, JSON.stringify(updatedBank));
+      localStorage.setItem(`questionBank_${subject}`, JSON.stringify([...existing, questionWithMeta]));
     }
 
     setCurrentQuestion({ type: '', question: '', options: [], correctAnswer: '' });
     setQuestionType('');
   };
 
-  const handleMetaChange = (e) => {
-    const { name, value } = e.target;
-    setQuizMeta(prev => ({ ...prev, [name]: value }));
+  const handleCreateQuiz = () => {
+    const subjectFinal = quizMeta.subject === 'Other' ? quizMeta.customSubject : quizMeta.subject;
+    if (
+      quizMeta.title &&
+      quizMeta.description &&
+      subjectFinal &&
+      quizMeta.timeLimit &&
+      quizMeta.difficulty &&
+      questions.length > 0
+    ) {
+      const updatedMeta = { ...quizMeta, subject: subjectFinal };
+      localStorage.setItem('createdQuizMeta', JSON.stringify(updatedMeta));
+      localStorage.setItem('createdQuizQuestions', JSON.stringify(questions));
+      navigate('/preview-quiz');
+    } else {
+      alert('Please fill in all required fields and add at least one question.');
+    }
   };
 
   const handleQuestionChange = (e) => {
@@ -111,7 +137,6 @@ export default function CreateQuiz() {
             </select>
           </>
         );
-
       case 'truefalse':
         return (
           <>
@@ -128,7 +153,6 @@ export default function CreateQuiz() {
             </select>
           </>
         );
-
       case 'fill':
         return (
           <>
@@ -143,7 +167,6 @@ export default function CreateQuiz() {
             />
           </>
         );
-
       case 'match':
         return (
           <>
@@ -197,37 +220,21 @@ export default function CreateQuiz() {
             <h6 className="text-muted">Write correct pairs — they will shuffle later.</h6>
           </>
         );
-
       default:
         return null;
     }
   };
 
-  const handleCreateQuiz = () => {
-    const finalSubject = quizMeta.subject === "Other" ? quizMeta.customSubject : quizMeta.subject;
-    if (
-      quizMeta.title &&
-      quizMeta.description &&
-      finalSubject &&
-      quizMeta.timeLimit &&
-      quizMeta.difficulty &&
-      questions.length > 0
-    ) {
-      const updatedMeta = {
-        ...quizMeta,
-        subject: finalSubject
-      };
-      localStorage.setItem('createdQuizQuestions', JSON.stringify(questions));
-      localStorage.setItem('createdQuizMeta', JSON.stringify(updatedMeta));
-      navigate('/preview-quiz');
-    } else {
-      alert('Please complete all required fields and add at least one question.');
-    }
-  };
-
   return (
     <div className="position-relative d-flex flex-column" style={{ minHeight: '100vh', width: '100vw', backgroundColor: '#f8f9fa' }}>
-      <div className="text-white px-4 pt-3 pb-4" style={{ background: 'linear-gradient(to right, #015794, #437FAA)', borderBottomLeftRadius: '60px', borderBottomRightRadius: '60px' }}>
+      {/* Decorative UI Icons */}
+      <img src={pencil1} alt="Pencil" className="position-absolute" style={{ top: '19%', left: '0%', width: '205px', transform: 'rotate(118deg)', zIndex: 0 }} />
+      <img src={trophy1} alt="Trophy" className="position-absolute" style={{ bottom: '0%', left: '1%', width: '205px', transform: 'rotate(7deg)', zIndex: 0 }} />
+      <img src={question1} alt="Question" className="position-absolute" style={{ bottom: '1%', left: '92.5%', transform: 'translateX(-49%) rotate(-2deg)', width: '210px', zIndex: 0 }} />
+      <img src={bulb1} alt="Bulb" className="position-absolute" style={{ bottom: '64%', right: '20%', width: '100px', transform: 'rotate(5deg)', zIndex: 0 }} />
+
+      {/* Header */}
+      <div className="text-white px-4 pt-3 pb-4" style={{ background: 'linear-gradient(to right, #015794, #437FAA)', borderBottomLeftRadius: '60px', borderBottomRightRadius: '60px' , zIndex:1}}>
         <div className="container d-flex justify-content-between align-items-center">
           <img src={logo} alt="Logo" style={{ width: '140px' }} />
           <a href="/creator" className="text-white fw-bold">Dashboard</a>
@@ -238,7 +245,9 @@ export default function CreateQuiz() {
         </div>
       </div>
 
-      <div className="container-fluid my-5 px-5">
+      {/* Form */}
+      
+      <div className="container-fluid my-5 px-5" style={{ position: 'relative', zIndex: 1 }}>
         <form onSubmit={(e) => e.preventDefault()}>
           <div className="mb-3">
             <label className="form-label">Quiz Title</label>
@@ -253,13 +262,7 @@ export default function CreateQuiz() {
           <div className="row">
             <div className="col-md-4 mb-3">
               <label className="form-label">Subject</label>
-              <select
-                className="form-select"
-                name="subject"
-                value={quizMeta.subject}
-                onChange={handleMetaChange}
-                required
-              >
+              <select className="form-select" name="subject" value={quizMeta.subject} onChange={handleMetaChange} required>
                 <option value="">Select</option>
                 <option value="Math">Math</option>
                 <option value="Science">Science</option>
@@ -273,14 +276,7 @@ export default function CreateQuiz() {
             {quizMeta.subject === "Other" && (
               <div className="col-md-4 mb-3">
                 <label className="form-label">Custom Subject</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  name="customSubject"
-                  value={quizMeta.customSubject || ''}
-                  onChange={handleMetaChange}
-                  required
-                />
+                <input type="text" className="form-control" name="customSubject" value={quizMeta.customSubject || ''} onChange={handleMetaChange} required />
               </div>
             )}
 
@@ -298,19 +294,20 @@ export default function CreateQuiz() {
                 <option value="hard">Hard</option>
               </select>
             </div>
+
+            <div className="col-md-4 mb-3 d-flex align-items-center">
+              <input type="checkbox" className="form-check-input me-2" name="isCertificate" checked={quizMeta.isCertificate} onChange={handleMetaChange} />
+              <label className="form-check-label">This quiz gives certificate on 100% score</label>
+            </div>
           </div>
 
+          {/* Question Bank Toggle */}
           <div className="form-check form-switch mb-3">
-            <input
-              className="form-check-input"
-              type="checkbox"
-              checked={useQuestionBank}
-              onChange={() => {
-                const newState = !useQuestionBank;
-                setUseQuestionBank(newState);
-                if (newState) navigate('/question-bank');
-              }}
-            />
+            <input className="form-check-input" type="checkbox" checked={useQuestionBank} onChange={() => {
+              const newState = !useQuestionBank;
+              setUseQuestionBank(newState);
+              if (newState) navigate('/question-bank');
+            }} />
             <label className="form-check-label">Use Questions from Question Bank</label>
           </div>
 
@@ -321,7 +318,7 @@ export default function CreateQuiz() {
                 <select className="form-select" value={questionType} onChange={(e) => {
                   setQuestionType(e.target.value);
                   setCurrentQuestion({ ...currentQuestion, type: e.target.value, options: [] });
-                }} required>
+                }}>
                   <option value="">Select Type</option>
                   <option value="mcq">Multiple Choice</option>
                   <option value="truefalse">True / False</option>
@@ -332,14 +329,7 @@ export default function CreateQuiz() {
 
               <div className="mb-3">
                 <label className="form-label">Question</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={currentQuestion.question}
-                  onChange={handleQuestionChange}
-                  placeholder="Enter your question"
-                  required
-                />
+                <input type="text" className="form-control" value={currentQuestion.question} onChange={handleQuestionChange} placeholder="Enter your question" required />
               </div>
 
               {renderQuestionInputs()}

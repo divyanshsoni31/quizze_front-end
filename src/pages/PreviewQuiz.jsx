@@ -42,14 +42,15 @@ export default function PreviewQuiz() {
 
     const updatedMeta = {
       ...quizMeta,
-      creatorEmail: creatorEmail,
+      creatorEmail,
+      isCertificate: quizMeta.isCertificate || false, // ✅ Ensure this is passed
     };
 
     const newQuiz = {
       id: quizMeta.id || Date.now(),
       code: finalCode,
       meta: updatedMeta,
-      questions: questions,
+      questions,
       createdAt: existing?.createdAt || new Date().toISOString(),
     };
 

@@ -1,0 +1,60 @@
+/* File: CertificatePage.css */
+
+.certificate-container {
+  min-height: 100vh;
+  width: 100vw;
+  background-color: #f3f3f3;
+  padding: 2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.certificate-content {
+  width: 1122px;   /* A4 landscape in px */
+  height: 794px;
+  padding: 3rem;
+  box-sizing: border-box;
+  border: 6px solid #000;
+  font-family: 'Georgia', serif;
+  color: #000;
+}
+
+.cert-title {
+  font-size: 2.7rem;
+  color: #0047ab;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.cert-subtitle,
+.cert-detail {
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.cert-name {
+  font-size: 2.4rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+}
+
+.cert-subject {
+  color: #198754;
+  font-size: 1.6rem;
+  font-weight: 500;
+}
+
+.cert-meta-label {
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: #333;
+  margin-bottom: 0.3rem;
+}
+
+.cert-meta-value {
+  font-weight: bold;
+  font-size: 1rem;
+}
