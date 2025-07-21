@@ -26,15 +26,16 @@ export default function CreatorDashboard() {
       <img src={bulb1} alt="Bulb" className="position-absolute" style={{ bottom: '34%', right: '2%', width: '215px', opacity: 2, transform: 'translateX(-19%) rotate(-1deg)' }} />
 
      {/* Header */}
-<div className="text-white pt-4 pb-3 px-4" style={{
+<div className="text-white py-3 px-3" style={{
   background: 'linear-gradient(to right, #015794, #437FAA)',
-  borderBottomLeftRadius: '80px',
-  borderBottomRightRadius: '80px',
+  borderBottomLeftRadius: '40px',
+  borderBottomRightRadius: '40px',
   width: '100%',
   zIndex: 1
 }}>
-  <div className="container d-flex justify-content-between align-items-center flex-wrap">
-    <img src={logo} alt="Logo" style={{ width: '160px' }} />
+  <div className="container-fluid d-flex justify-content-between align-items-center flex-wrap">
+
+    <img src={logo} alt="Logo" style={{ width: '160px', }} />
 
     <div className="d-flex gap-2 flex-wrap justify-content-end">
       {/* ✅ New Button: View My Quiz Attempts as Creator */}

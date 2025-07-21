@@ -1,6 +1,6 @@
-// File: src/pages/Login.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import logo1 from '../assets/logo1.png';
 import emailIcon from '../assets/icon-email.png';
 import lockIcon from '../assets/icon-lock.png';
@@ -13,49 +13,39 @@ export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false); // 🚀 Loader state
 
-const handleLogin = (e) => {
-  e.preventDefault();
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true); // ⏳ Start loader
 
-  try {
-    const stored = localStorage.getItem(email);
+    try {
+      const res = await axios.post('http://localhost:3000/api/auth/login', {
+        email,
+        password,
+      });
 
-    if (!stored) {
-      alert("❌ No user found with this email");
-      return;
+      const { token, user } = res.data;
+
+      if (!token || !user) {
+        throw new Error('Invalid response from server');
+      }
+
+      // ✅ Save to localStorage
+      localStorage.setItem('token', `Bearer ${token}`);
+      localStorage.setItem('userEmail', user.email);
+      localStorage.setItem('userRole', user.role);
+      localStorage.setItem('userName', `${user.firstname} ${user.lastname}`);
+
+      // ✅ Redirect based on role
+      navigate(user.role === 'student' ? '/student' : '/creator');
+    } catch (err) {
+      console.error('Login error:', err);
+      alert(err.response?.data?.message || 'Login failed. Please try again.');
+    } finally {
+      setLoading(false); // ✅ Stop loader
     }
-
-    const user = JSON.parse(stored);
-
-    if (!user.password || !user.role) {
-      alert("⚠️ Invalid user data found.");
-      return;
-    }
-
-    if (!user.verified) {
-      alert("⚠️ Email not verified. Please complete OTP verification.");
-      return;
-    }
-
-    if (user.password !== password) {
-      alert("❌ Incorrect password");
-      return;
-    }
-
-    // ✅ Store session info
-    localStorage.setItem("userEmail", email);
-    localStorage.setItem("userRole", user.role);
-    localStorage.setItem("userName", user.name || "User");
-
-    // ✅ Redirect
-    navigate(user.role === "student" ? "/student" : "/creator");
-
-  } catch (err) {
-    console.error("Login error:", err);
-    alert("Something went wrong while logging in. Please try again.");
-  }
-};
-
+  };
 
   return (
     <div
@@ -69,13 +59,13 @@ const handleLogin = (e) => {
       }}
     >
       {/* Background Icons */}
-          <img src={pencil} alt="Pencil" className="position-absolute" style={{ top: '5%', left: '5%', width: '175px', opacity: 2, transform: 'rotate(-1deg)' }} />
-          <img src={trophy} alt="Trophy" className="position-absolute" style={{ bottom: '5%', left: '8%', width: '230px', opacity: 2, transform: 'rotate(-32deg)' }} />
-          <img src={question} alt="Question" className="position-absolute" style={{ bottom: '59%', left: '89%', transform: 'translateX(-50%) rotate(73deg)', width: '320px', opacity: 2, zIndex: 0 }} />
-          <img src={bulb} alt="Bulb" className="position-absolute" style={{ bottom: '4%', right: '2%', width: '320px', opacity: 2, transform: 'rotate(-17deg)' }} />
-      
+      <img src={pencil} alt="Pencil" className="position-absolute" style={{ top: '5%', left: '5%', width: '175px', opacity: 2, transform: 'rotate(-1deg)' }} />
+      <img src={trophy} alt="Trophy" className="position-absolute" style={{ bottom: '5%', left: '8%', width: '230px', opacity: 2, transform: 'rotate(-32deg)' }} />
+      <img src={question} alt="Question" className="position-absolute" style={{ bottom: '59%', left: '89%', transform: 'translateX(-50%) rotate(73deg)', width: '320px', opacity: 2, zIndex: 0 }} />
+      <img src={bulb} alt="Bulb" className="position-absolute" style={{ bottom: '4%', right: '2%', width: '320px', opacity: 2, transform: 'rotate(-17deg)' }} />
+
       <div className="bg-light shadow px-4 py-3 position-relative" style={{ width: '100%', maxWidth: '500px', borderRadius: '40px', zIndex: 1 }}>
-         <div className="text-center">
+        <div className="text-center">
           <img src={logo1} alt="Logo1" style={{ width: '200px' }} />
           <h5 className="mt-2 mb-3">Login to QUIZZE</h5>
         </div>
@@ -109,7 +99,9 @@ const handleLogin = (e) => {
             />
           </div>
 
-          <button type="submit" className="btn btn-primary w-100">Login</button>
+          <button type="submit" className="btn btn-primary w-100" disabled={loading}>
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
 
           <p className="text-center mt-3">
             Don't have an account? <a href="/register">Register</a>
