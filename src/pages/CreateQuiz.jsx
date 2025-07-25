@@ -29,13 +29,67 @@ export default function CreateQuiz() {
   });
 
   useEffect(() => {
+    const isReset = localStorage.getItem('quizReset');
+
+    if (isReset === 'true') {
+      localStorage.removeItem('quizReset');
+
+      setQuizMeta({
+        title: '',
+        description: '',
+        subject: '',
+        customSubject: '',
+        timeLimit: '',
+        difficulty: '',
+        isCertificate: false
+      });
+
+      setQuestions([]);
+      setCurrentQuestion({
+        type: '',
+        question: '',
+        options: [],
+        correctAnswer: ''
+      });
+
+      // 🧹 Clear all temp and final storage
+      localStorage.removeItem('tempQuizMeta');
+      localStorage.removeItem('tempQuestions');
+      localStorage.removeItem('finalQuizMeta');
+      localStorage.removeItem('finalQuizQuestions');
+      localStorage.removeItem('createdQuizMeta');
+      localStorage.removeItem('createdQuizQuestions');
+
+      return; // ⛔️ Prevent further execution
+    }
+
+    // Only runs if not resetting
     const storedQuestions = localStorage.getItem('selectedQuestionBankQuestions');
     if (storedQuestions) {
       const parsed = JSON.parse(storedQuestions);
       setQuestions(prev => [...prev, ...parsed]);
       localStorage.removeItem('selectedQuestionBankQuestions');
     }
+
+    const tempMeta = localStorage.getItem('tempQuizMeta');
+    const tempQues = localStorage.getItem('tempQuestions');
+
+    if (tempMeta) {
+      setQuizMeta(JSON.parse(tempMeta));
+      localStorage.removeItem('tempQuizMeta');
+    }
+
+    if (tempQues) {
+      const parsed = JSON.parse(tempQues);
+      if (parsed.length > 0) {
+        setQuestions(prev => [...prev, ...parsed]);
+      }
+      localStorage.removeItem('tempQuestions');
+    }
   }, []);
+
+
+
 
   const handleMetaChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -56,7 +110,13 @@ export default function CreateQuiz() {
       ...currentQuestion,
       id: Date.now(),
       ownerEmail: creatorEmail,
+      type: currentQuestion.type === 'match' ? 'match-the-following' : currentQuestion.type,
+      ...(currentQuestion.type === 'match' && {
+        pairs: [...currentQuestion.options],
+        correctAnswer: [...currentQuestion.options]
+      })
     };
+
 
     setQuestions(prev => [...prev, questionWithMeta]);
 
@@ -81,6 +141,10 @@ export default function CreateQuiz() {
       questions.length > 0
     ) {
       const updatedMeta = { ...quizMeta, subject: subjectFinal };
+
+      localStorage.setItem('tempQuizMeta', JSON.stringify(updatedMeta));
+      localStorage.setItem('tempQuestions', JSON.stringify(questions));
+
       localStorage.setItem('createdQuizMeta', JSON.stringify(updatedMeta));
       localStorage.setItem('createdQuizQuestions', JSON.stringify(questions));
       navigate('/preview-quiz');
@@ -234,7 +298,7 @@ export default function CreateQuiz() {
       <img src={bulb1} alt="Bulb" className="position-absolute" style={{ bottom: '64%', right: '20%', width: '100px', transform: 'rotate(5deg)', zIndex: 0 }} />
 
       {/* Header */}
-      <div className="text-white px-4 pt-3 pb-4" style={{ background: 'linear-gradient(to right, #015794, #437FAA)', borderBottomLeftRadius: '60px', borderBottomRightRadius: '60px' , zIndex:1}}>
+      <div className="text-white px-4 pt-3 pb-4" style={{ background: 'linear-gradient(to right, #015794, #437FAA)', borderBottomLeftRadius: '60px', borderBottomRightRadius: '60px', zIndex: 1 }}>
         <div className="container d-flex justify-content-between align-items-center">
           <img src={logo} alt="Logo" style={{ width: '140px' }} />
           <a href="/creator" className="text-white fw-bold">Dashboard</a>
@@ -246,7 +310,7 @@ export default function CreateQuiz() {
       </div>
 
       {/* Form */}
-      
+
       <div className="container-fluid my-5 px-5" style={{ position: 'relative', zIndex: 1 }}>
         <form onSubmit={(e) => e.preventDefault()}>
           <div className="mb-3">
@@ -282,7 +346,21 @@ export default function CreateQuiz() {
 
             <div className="col-md-4 mb-3">
               <label className="form-label">Time Limit (minutes)</label>
-              <input type="number" className="form-control" name="timeLimit" value={quizMeta.timeLimit} onChange={handleMetaChange} required />
+              <input
+                type="number"
+                className="form-control"
+                name="timeLimit"
+                min="1"
+                value={quizMeta.timeLimit}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (parseInt(value) >= 1 || value === "") {
+                    handleMetaChange(e);
+                  }
+                }}
+                required
+              />
+
             </div>
 
             <div className="col-md-4 mb-3">
@@ -303,11 +381,22 @@ export default function CreateQuiz() {
 
           {/* Question Bank Toggle */}
           <div className="form-check form-switch mb-3">
-            <input className="form-check-input" type="checkbox" checked={useQuestionBank} onChange={() => {
-              const newState = !useQuestionBank;
-              setUseQuestionBank(newState);
-              if (newState) navigate('/question-bank');
-            }} />
+            <input
+              className="form-check-input"
+              type="checkbox"
+              checked={useQuestionBank}
+              onChange={() => {
+                const newState = !useQuestionBank;
+                setUseQuestionBank(newState);
+                if (newState) {
+                  // ✅ Save current quiz state before navigating away
+                  localStorage.setItem('tempQuizMeta', JSON.stringify(quizMeta));
+                  localStorage.setItem('tempQuestions', JSON.stringify(questions));
+                  navigate('/question-bank');
+                }
+              }}
+            />
+
             <label className="form-check-label">Use Questions from Question Bank</label>
           </div>
 
