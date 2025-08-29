@@ -36,6 +36,7 @@ export default function Login() {
       localStorage.setItem('userEmail', user.email);
       localStorage.setItem('userRole', user.role);
       localStorage.setItem('userName', `${user.firstname} ${user.lastname}`);
+      localStorage.setItem('userId', user.userId);
 
       // ✅ Redirect based on role
       navigate(user.role === 'student' ? '/student' : '/creator');

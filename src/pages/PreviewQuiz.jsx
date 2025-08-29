@@ -32,47 +32,96 @@ export default function PreviewQuiz() {
     return quizMeta.subject === 'Other' ? quizMeta.customSubject : quizMeta.subject;
   };
 
-  const handleFinalize = () => {
-  const creatorEmail = localStorage.getItem('userEmail');
-  const quizzesKey = `quizzes_${creatorEmail}`;
-  const existingQuizzes = JSON.parse(localStorage.getItem(quizzesKey)) || [];
+  const handleFinalize = async () => {
+  try {
+    const creatorEmail = localStorage.getItem("userEmail");
+    const userId = localStorage.getItem("userId");
+    const token = localStorage.getItem("token");   // 🔑 JWT token
+    const quizMeta = JSON.parse(localStorage.getItem("createdQuizMeta"));
+    const questions = JSON.parse(localStorage.getItem("createdQuizQuestions")) || [];
 
-  const existing = existingQuizzes.find(q => q.meta.title === quizMeta.title || q.id === quizMeta.id);
-  const finalCode = existing?.code || quizCode || `QUIZ-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    // ✅ Format questions according to backend
+    const formattedQuestions = questions.map((q) => {
+      // normalize type
+      let type =
+        q.type === "truefalse"
+          ? "true-false"
+          : q.type === "fill"
+          ? "fill-in-the-blank"
+          : q.type === "match"
+          ? "match-the-following"
+          : q.type; // mcq stays mcq
 
-  const updatedMeta = {
-    ...quizMeta,
-    creatorEmail,
-    isCertificate: quizMeta.isCertificate || false,
-  };
+      let questionData = {
+        type,
+        questionText: q.question || q.questionText,
+        correctAnswer: q.correctAnswer || "",
+      };
 
-  const newQuiz = {
-    id: quizMeta.id || Date.now(),
-    code: finalCode,
-    meta: updatedMeta,
-    questions,
-    createdAt: existing?.createdAt || new Date().toISOString(),
-  };
+      if (type === "mcq") {
+        questionData.options = q.options || [];
+      }
 
-  const updatedQuizzes = existingQuizzes.filter(q => q.meta.title !== quizMeta.title && q.id !== newQuiz.id);
-  updatedQuizzes.push(newQuiz);
-  localStorage.setItem(quizzesKey, JSON.stringify(updatedQuizzes));
+      if (type === "match-the-following") {
+        // frontend keeps options = correct pairs
+        const pairs = q.options || q.pairs || [];
+        questionData.pairs = pairs;
+        questionData.correctAnswer = pairs; // ✅ backend expects this duplication
+      }
 
-  localStorage.setItem('finalQuizMeta', JSON.stringify({ ...updatedMeta, code: finalCode }));
-  localStorage.setItem('finalQuizQuestions', JSON.stringify(questions));
-  localStorage.setItem('studentAnswers', JSON.stringify({}));
-  localStorage.setItem('fromPage', 'preview');
+      return {
+        fromBank: q.fromBank || false,
+        questionData,
+      };
+    });
 
-  // 🧹 Clear the CreateQuiz form and selections
-  localStorage.removeItem('createdQuizMeta');
-  localStorage.removeItem('createdQuizQuestions');
-  localStorage.removeItem('finalQuizMeta');
-  localStorage.removeItem('finalQuizQuestions');
-  localStorage.removeItem('selectedQuestionBankQuestions');
+    // ✅ Final payload
+    const payload = {
+      title: quizMeta?.title || "Untitled Quiz",
+      description: quizMeta?.description || "",
+      numQuestions: formattedQuestions.length,
+      userId,
+      subject: quizMeta?.subject || "General",
+      timeLimit: Number(quizMeta?.timeLimit) || 0,
+      difficulty: quizMeta?.difficulty || "easy",
+      certificate: quizMeta?.certificate || false,
+      questions: formattedQuestions,
+    };
 
-  localStorage.setItem('quizReset', 'true');
+    console.log("📤 Sending quiz payload:", JSON.stringify(payload, null, 2));
 
-  navigate('/creatorurs');
+    const response = await fetch("http://localhost:3000/api/quiz/create", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `${token}`, // ✅ use Bearer format
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || "Failed to create quiz");
+
+    setQuizCode(
+      data.code ||
+        `QUIZ-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+    );
+
+    alert("✅ Quiz successfully finalized & saved to backend!");
+
+    // 🧹 Clear local data
+    localStorage.removeItem("createdQuizMeta");
+    localStorage.removeItem("createdQuizQuestions");
+    localStorage.removeItem("finalQuizMeta");
+    localStorage.removeItem("finalQuizQuestions");
+    localStorage.removeItem("selectedQuestionBankQuestions");
+    localStorage.setItem("quizReset", "true");
+
+    navigate("/creator");
+  } catch (err) {
+    console.error("❌ Error finalizing quiz:", err);
+    alert("⚠️ Failed to finalize quiz. Check console/logs.");
+  }
 };
 
 
@@ -81,13 +130,9 @@ export default function PreviewQuiz() {
     updated.splice(index, 1);
 
     setQuestions(updated);
-    localStorage.setItem('createdQuizQuestions', JSON.stringify(updated)); // 🧠 update manual questions
-    localStorage.setItem('tempQuestions', JSON.stringify(updated));        // ✅ update main quiz store too
+    localStorage.setItem('createdQuizQuestions', JSON.stringify(updated));
+    localStorage.setItem('tempQuestions', JSON.stringify(updated));
   };
-
-
-
-
 
   const handleEditClick = (index) => {
     setEditingIndex(index);
@@ -245,7 +290,6 @@ export default function PreviewQuiz() {
                         : q.correctAnswer}
                     </p>
                   )}
-
                 </>
               )}
             </div>

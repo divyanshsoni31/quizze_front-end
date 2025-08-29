@@ -13,6 +13,7 @@ import JoinQuiz from './pages/JoinQuiz';
 import CreateQuiz from './pages/CreateQuiz';
 import QuestionBank from './pages/QuestionBank';
 import PreviewQuiz from './pages/PreviewQuiz';
+import PreviewFinalizeQuiz from './pages/previewFinalizeQuiz';  // ✅ New page
 import AttemptQuiz from './pages/AttemptQuiz';
 import ManageQuiz from './pages/ManageQuiz';
 
@@ -22,7 +23,6 @@ import StudentResults from './pages/StudentResults';
 
 import ProtectedRoute from './components/ProtectedRoute';
 import Certificate from './pages/Certificate';
-
 
 function App() {
   return (
@@ -86,6 +86,15 @@ function App() {
           }
         />
         <Route
+          path="/preview-finalize-quiz/:id"
+          element={
+            <ProtectedRoute role="creator">
+              <PreviewFinalizeQuiz />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/manage-quiz"
           element={
             <ProtectedRoute role="creator">
@@ -124,6 +133,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ResultPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/certificate"
+          element={
+            <ProtectedRoute>
+              <Certificate />
             </ProtectedRoute>
           }
         />
