@@ -14,6 +14,8 @@ export default function CreatorDashboard() {
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userRole');
     localStorage.removeItem('userName');
+    localStorage.removeItem('token');
+    localStorage.removeItem('userId');
     navigate('/');
   };
 

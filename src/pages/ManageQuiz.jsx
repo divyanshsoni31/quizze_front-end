@@ -125,44 +125,40 @@ const handleEdit = (quiz) => {
       </div>
 
       {/* Quiz Cards */}
-      <div className="container-fluid flex-grow-1 d-flex flex-column">
-        <div className="row g-4 px-4 flex-grow-1">
-          {loading ? (
-            <div className="col-12 text-center text-muted">Loading quizzes...</div>
-          ) : error ? (
-            <div className="col-12 text-center text-danger">{error}</div>
-          ) : paginatedQuizzes.length === 0 ? (
-            <div className="col-12 text-center text-muted">No quizzes found.</div>
-          ) : (
-            paginatedQuizzes.map((quiz) => (
-              <div key={quiz._id} className="col-12 col-sm-6 col-md-4 col-lg-3">
-                <div className="card h-50 shadow-sm">
-                  <div className="card-body d-flex flex-column">
-                    <div className="flex-grow-1">
-                      <h5 className="card-title text-capitalize fw-bold">
-                        {quiz.title || 'Untitled Quiz'}
-                      </h5>
-                      <p className="card-text text-muted">{quiz.description || 'No description provided.'}</p>
-                      <p className="mb-1"><strong>Time Limit:</strong> {quiz.timeLimit || 0} min</p>
-                      <p className="mb-1"><strong>Difficulty:</strong> {quiz.difficulty || 'N/A'}</p>
-                      <p className="text-muted fst-italic">Created: {new Date(quiz.createdAt).toLocaleString()}</p>
-                    </div>
-
-                    <div className="d-flex justify-content-between mt-3">
-                      <button className="btn btn-sm btn-outline-primary" onClick={() => handleEdit(quiz)}>
-                        ✏️ View Quiz
-                      </button>
-                      <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(quiz._id)}>
-                        🗑 Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
+     <div className="container-fluid my-4">
+  <div className="row g-4 px-4 justify-content-start">
+    {paginatedQuizzes.map((quiz) => (
+      <div key={quiz._id} className="col-12 col-sm-6 col-md-4 col-lg-3">
+        <div className="card shadow-sm h-100">
+          <div className="card-body d-flex flex-column">
+            <div className="flex-grow-1">
+              <h5 className="card-title text-capitalize fw-bold">
+                {quiz.title || 'Untitled Quiz'}
+              </h5>
+              <p className="card-text text-muted">
+                {quiz.description || 'No description provided.'}
+              </p>
+              <p className="mb-1"><strong>Time Limit:</strong> {quiz.timeLimit || 0} min</p>
+              <p className="mb-1"><strong>Difficulty:</strong> {quiz.difficulty || 'N/A'}</p>
+              <p className="text-muted fst-italic">
+                Created: {new Date(quiz.createdAt).toLocaleString()}
+              </p>
+            </div>
+            <div className="d-flex justify-content-between mt-3">
+              <button className="btn btn-sm btn-outline-primary" onClick={() => handleEdit(quiz)}>
+                ✏️ View Quiz
+              </button>
+              <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(quiz._id)}>
+                🗑 Delete
+              </button>
+            </div>
+          </div>
         </div>
       </div>
+    ))}
+  </div>
+</div>
+
 
       {/* Pagination */}
       {totalPages > 1 && (

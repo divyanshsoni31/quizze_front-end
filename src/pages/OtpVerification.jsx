@@ -64,7 +64,7 @@ export default function OtpVerification() {
 
   return (
     <div className="position-relative d-flex justify-content-center align-items-center"
-      style={{ height: '100vh', width: '100vw', background: 'linear-gradient(135deg, #1565C0, #1E88E5)', overflow: 'hidden', padding: '20px' }}>
+      style={{ height: '100vh', width: '100vw', background: 'linear-gradient(135deg, #015794, #437FAA)', overflow: 'hidden', padding: '20px' }}>
 
       {/* Background Icons */}
       <img src={pencil} alt="Pencil" className="position-absolute" style={{ top: '5%', left: '5%', width: '175px', transform: 'rotate(-1deg)' }} />

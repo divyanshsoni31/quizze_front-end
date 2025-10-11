@@ -7,8 +7,12 @@ export default function QuestionBank() {
   const navigate = useNavigate();
   const userEmail = localStorage.getItem('userEmail')?.toLowerCase().trim();
   const [questions, setQuestions] = useState([]);
+  const [filteredQuestions, setFilteredQuestions] = useState([]);
   const [selectedQuestions, setSelectedQuestions] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('all'); // 'all', 'mcq', 'fill', 'truefalse', 'match-the-following'
 
+  // Fetch questions
   useEffect(() => {
     fetch('http://localhost:3000/api/qb/all')
       .then(res => res.json())
@@ -23,6 +27,25 @@ export default function QuestionBank() {
         console.error('Error fetching questions:', err);
       });
   }, []);
+
+  // Filter questions based on searchTerm and filterType
+  useEffect(() => {
+    let filtered = [...questions];
+
+    // Filter by search term
+    if (searchTerm.trim() !== '') {
+      filtered = filtered.filter(q =>
+        (q.questionText || '').toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filter by type
+    if (filterType !== 'all') {
+      filtered = filtered.filter(q => q.type === filterType);
+    }
+
+    setFilteredQuestions(filtered);
+  }, [questions, searchTerm, filterType]);
 
   const handleSelect = (id) => {
     setSelectedQuestions(prev =>
@@ -87,54 +110,84 @@ export default function QuestionBank() {
         </div>
       </div>
 
-      {/* Question List */}
+      {/* Search & Filter */}
       <div className="container mt-4">
+        <div className="row mb-3">
+          <div className="col-md-6 mb-2">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search questions..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="col-md-3 mb-2">
+            <select
+              className="form-select"
+              value={filterType}
+              onChange={e => setFilterType(e.target.value)}
+            >
+              <option value="all">All Types</option>
+              <option value="mcq">MCQ</option>
+              <option value="fill">Fill in the Blank</option>
+              <option value="truefalse">True/False</option>
+              <option value="match-the-following">Match the Following</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Question List */}
         <div className="row">
-          {questions.map((q, i) => {
-            const id = q.id || q._id;
-            const isSelected = selectedQuestions.includes(id);
+          {filteredQuestions.length === 0 ? (
+            <div className="col-12 text-center text-muted">No questions found.</div>
+          ) : (
+            filteredQuestions.map((q, i) => {
+              const id = q.id || q._id;
+              const isSelected = selectedQuestions.includes(id);
 
-            return (
-              <div className="col-md-6 col-lg-4 mb-4" key={id || i}>
-                <div className="card h-100 shadow-sm">
-                  <div className="card-body d-flex flex-column">
-                    <h5 className="card-title">{q.questionText}</h5>
+              return (
+                <div className="col-md-6 col-lg-4 mb-4" key={id || i}>
+                  <div className="card h-100 shadow-sm">
+                    <div className="card-body d-flex flex-column">
+                      <h5 className="card-title">{q.questionText}</h5>
 
-                    {q.type === 'mcq' && q.options.map((opt, j) => (
-                      <div key={j}><strong>{String.fromCharCode(65 + j)}.</strong> {opt}</div>
-                    ))}
-                    {q.type === 'fill' && <p className="fst-italic">Fill in the blank</p>}
-                    {q.type === 'truefalse' && <p>A. True <br /> B. False</p>}
-                    {q.type === 'match-the-following' && (
-                      <div className="mb-2">
-                        <p className="fw-bold mb-1">Match Pairs:</p>
-                        {q.pairs?.map((pair, idx) => (
-                          <li key={idx}>{pair.left} —&gt; {pair.right}</li>
-                        ))}
+                      {q.type === 'mcq' && q.options.map((opt, j) => (
+                        <div key={j}><strong>{String.fromCharCode(65 + j)}.</strong> {opt}</div>
+                      ))}
+                      {q.type === 'fill' && <p className="fst-italic">Fill in the blank</p>}
+                      {q.type === 'truefalse' && <p>A. True <br /> B. False</p>}
+                      {q.type === 'match-the-following' && (
+                        <div className="mb-2">
+                          <p className="fw-bold mb-1">Match Pairs:</p>
+                          {q.pairs?.map((pair, idx) => (
+                            <li key={idx}>{pair.left} —&gt; {pair.right}</li>
+                          ))}
+                        </div>
+                      )}
+                      {q.type !== 'match-the-following' && (
+                        <p>
+                          <strong>Correct:</strong>{' '}
+                          {typeof q.correctAnswer === 'object'
+                            ? JSON.stringify(q.correctAnswer)
+                            : q.correctAnswer}
+                        </p>
+                      )}
+
+                      <div className="mt-auto d-flex justify-content-end">
+                        <button
+                          className={`btn btn-sm ${isSelected ? 'btn-outline-danger' : 'btn-outline-primary'}`}
+                          onClick={() => handleSelect(id)}
+                        >
+                          {isSelected ? 'Remove' : 'Select'}
+                        </button>
                       </div>
-                    )}
-                    {q.type !== 'match-the-following' && (
-                      <p>
-                        <strong>Correct:</strong>{' '}
-                        {typeof q.correctAnswer === 'object'
-                          ? JSON.stringify(q.correctAnswer)
-                          : q.correctAnswer}
-                      </p>
-                    )}
-
-                    <div className="mt-auto d-flex justify-content-end">
-                      <button
-                        className={`btn btn-sm ${isSelected ? 'btn-outline-danger' : 'btn-outline-primary'}`}
-                        onClick={() => handleSelect(id)}
-                      >
-                        {isSelected ? 'Remove' : 'Select'}
-                      </button>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
 
