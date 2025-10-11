@@ -63,7 +63,7 @@ export default function ViewFinalQuiz() {
                 <div className="d-flex justify-content-between align-items-center container-fluid">
                     <img src={logo} alt="Quizze Logo" style={{ width: "140px" }} />
                     <h4 className="mb-0 fw-bold">Finalized Quiz</h4>
-                    <button className="btn btn-light" onClick={() => navigate("/creator")}>
+                    <button className="btn btn-light" onClick={() => navigate("/manage-quiz")}>
                         Back
                     </button>
                 </div>

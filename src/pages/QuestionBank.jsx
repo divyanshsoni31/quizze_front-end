@@ -161,7 +161,7 @@ export default function QuestionBank() {
                         <div className="mb-2">
                           <p className="fw-bold mb-1">Match Pairs:</p>
                           {q.pairs?.map((pair, idx) => (
-                            <li key={idx}>{pair.left} —&gt; {pair.right}</li>
+                            <li className='' key={idx}>{pair.left} —&gt; {pair.right}</li>
                           ))}
                         </div>
                       )}

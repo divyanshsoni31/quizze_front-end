@@ -66,7 +66,7 @@ export default function JoinQuiz() {
           title: data.title,
           description: data.description,
           code: data.quizId,
-          timeLimit: data.timeLimit || 1,
+          timeLimit: data.time || 1,
         })
       );
       localStorage.setItem('finalQuizQuestions', JSON.stringify(data.questions));
