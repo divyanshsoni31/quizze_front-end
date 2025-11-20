@@ -39,7 +39,7 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/verify" element={<OtpVerification />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/forgetPassword" element={<ForgotPassword />}/>
+        <Route path="/forgetPassword" element={<ForgotPassword />} />
 
         {/* 👨‍🎓 Protected: Student Only */}
         <Route
@@ -154,11 +154,10 @@ function App() {
         <Route
           path="/my-attempts"
           element={
-            <ProtectedRoute role="creator">
               <MyAttempts />
-            </ProtectedRoute>
           }
         />
+
 
         <Route
           path="/QuizAttemptedByStudents/:quizId"
@@ -172,7 +171,7 @@ function App() {
         <Route
           path="/forgetPassword"
           element={
-              <ForgotPassword />
+            <ForgotPassword />
           }
         />
 

@@ -8,6 +8,7 @@ export default function MyAttempts() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
+  const role = sessionStorage.getItem("userRole");
 
   // ✅ Fetch attempts from backend API
   useEffect(() => {
@@ -88,7 +89,16 @@ export default function MyAttempts() {
             onClick={() => navigate("/creator-dashboard")}
           />
           <h4 className="mb-0 fw-bold text-center flex-grow-1">My Attempts</h4>
-          <button className="btn btn-light" onClick={() => navigate('/creator')}>
+          <button
+            className="btn btn-light"
+            onClick={() => {
+              if (role == "creator") {
+                navigate("/creator");
+              } else {
+                navigate("/student");
+              }
+            }}
+          >
             ← Back
           </button>
         </div>
