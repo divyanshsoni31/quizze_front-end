@@ -1,316 +1,234 @@
 // File: src/pages/ResultPage.jsx
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Chart from 'chart.js/auto';
-import logo from '../assets/logo.png';
+import React, { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import Chart from "chart.js/auto";
+import logo from "../assets/logo.png";
 
 export default function ResultPage() {
   const navigate = useNavigate();
-  const [quizMeta, setQuizMeta] = useState({});
-  const [questions, setQuestions] = useState([]);
-  const [answers, setAnswers] = useState({});
-  const [score, setScore] = useState(0);
-  const [percentage, setPercentage] = useState(0);
-  const [fromPage, setFromPage] = useState('');
-  const [showCertLoader, setShowCertLoader] = useState(false);
+  const location = useLocation();
+  const attemptId = location.state?.attemptId;
 
-  // Safe normalizer: handles strings, numbers, arrays, objects, null
-  const normalize = (val) => {
-    if (val == null) return '';
-    if (Array.isArray(val)) return val.map(v => normalize(v)).join('').toLowerCase();
-    if (typeof val === 'object') return JSON.stringify(val).toLowerCase();
-    return String(val).replace(/\s+/g, '').toLowerCase();
-  };
+  const [quizResult, setQuizResult] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  // Helper to get display text for MCQ correct answer
-  const getCorrectTextForMCQ = (q) => {
-    // q.correctAnswer may be 'A'/'B' etc OR the option text itself
-    const correct = q.correctAnswer;
-    if (!correct && q.correct === undefined) return ''; // nothing found
-    // if correct is a single letter
-    if (typeof correct === 'string' && /^[A-Z]$/i.test(correct.trim())) {
-      const idx = correct.trim().toUpperCase().charCodeAt(0) - 65;
-      if (Array.isArray(q.options) && q.options[idx] !== undefined) return `${correct.toUpperCase()}. ${q.options[idx]}`;
-      return correct.toUpperCase();
-    }
-    // otherwise, if correct matches one of the options, find letter
-    if (Array.isArray(q.options)) {
-      for (let i = 0; i < q.options.length; i++) {
-        if (normalize(q.options[i]) === normalize(correct)) {
-          const letter = String.fromCharCode(65 + i);
-          return `${letter}. ${q.options[i]}`;
+  // ✅ Fetch Attempt Details (if navigated from MyAttempts)
+  const fetchAttemptResult = async (attemptId) => {
+    try {
+      const token = sessionStorage.getItem("token");
+      const res = await fetch(
+        `http://localhost:3000/api/quiz/attempt/${attemptId}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token,
+          },
         }
+      );
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to fetch attempt result.");
       }
+
+      setQuizResult(data.result);
+      setLoading(false);
+      renderChart(data.result.correctCount, data.result.wrongCount);
+    } catch (err) {
+      console.error("Error fetching attempt result:", err);
+      setErrorMsg("Failed to load saved result.");
+      setLoading(false);
     }
-    // fallback: show raw correct value
-    return String(correct ?? q.correct ?? '');
   };
 
-  // Helper to compute selected text for MCQ given stored answer (letter or text)
-  const getSelectedTextForMCQ = (q, userAns) => {
-    if (!userAns) return '';
-    // if userAns is letter
-    if (typeof userAns === 'string' && /^[A-Z]$/i.test(userAns.trim())) {
-      const idx = userAns.trim().toUpperCase().charCodeAt(0) - 65;
-      if (Array.isArray(q.options) && q.options[idx] !== undefined) return `${userAns.toUpperCase()}. ${q.options[idx]}`;
-      return userAns.toUpperCase();
-    }
-    // else maybe userAns is already option text
-    return String(userAns);
-  };
-
-  useEffect(() => {
-    const meta = JSON.parse(localStorage.getItem('finalQuizMeta')) || {};
-    const qs = JSON.parse(localStorage.getItem('finalQuizQuestions')) || [];
-    const ans = JSON.parse(localStorage.getItem('studentAnswers')) || {};
-    const origin = localStorage.getItem('fromPage') || '';
-
-    setQuizMeta(meta);
-    setQuestions(qs);
-    setAnswers(ans);
-    setFromPage(origin);
-
-    // scoring
-    let sc = 0;
-    qs.forEach((q, i) => {
-      const userAns = ans[i];
-
-      // MCQ
-      if (q.type === 'mcq' || q.type === 'multiple-choice') {
-        if (!userAns) return;
-        // compute selected text and correct text normalized
-        const selectedText = (() => {
-          if (typeof userAns === 'string' && /^[A-Z]$/i.test(userAns.trim())) {
-            const idx = userAns.trim().toUpperCase().charCodeAt(0) - 65;
-            return q.options?.[idx] ?? userAns;
-          }
-          return userAns;
-        })();
-        const correctVal = q.correctAnswer ?? q.correct ?? null;
-        // If correct is letter, map to option; else compare text
-        let correctText;
-        if (typeof correctVal === 'string' && /^[A-Z]$/i.test(correctVal.trim())) {
-          const idx = correctVal.trim().toUpperCase().charCodeAt(0) - 65;
-          correctText = q.options?.[idx] ?? correctVal;
-        } else {
-          correctText = correctVal;
-        }
-        if (normalize(selectedText) && normalize(selectedText) === normalize(correctText)) sc++;
-      }
-      // True/False
-      else if (q.type === 'truefalse' || q.type === 'true-false') {
-        if (!userAns) return;
-        const correctVal = q.correctAnswer ?? q.correct ?? null;
-        // correct may be boolean or 'True'/'False' or 'true' etc.
-        if (normalize(userAns) === normalize(correctVal)) sc++;
-      }
-      // Fill
-      else if (q.type === 'fill' || q.type === 'fill-in-the-blank') {
-        if (!userAns) return;
-        const correctVal = q.correctAnswer ?? q.correct ?? null;
-        if (normalize(userAns) === normalize(correctVal)) sc++;
-      }
-      // Match
-      else if (q.type === 'match' || q.type === 'match-the-following' || q.type === 'match-the following') {
-        // userAns expected to be object like {0: 'Structure', 1: 'Design', ...}
-        const expectedPairs = q.pairs ?? q.options ?? q.correctAnswer ?? [];
-        if (!Array.isArray(expectedPairs) || expectedPairs.length === 0) return;
-        if (!userAns || typeof userAns !== 'object') return;
-
-        const allMatched = expectedPairs.every((pair, idx) => {
-          const expectedRight = (pair.right ?? pair) ?? '';
-          return normalize(userAns[idx]) === normalize(expectedRight);
-        });
-        if (allMatched) sc++;
-      }
-      // fallback generic
-      else {
-        if (!userAns) return;
-        const correctVal = q.correctAnswer ?? q.correct ?? null;
-        if (normalize(userAns) === normalize(correctVal)) sc++;
-      }
-    });
-
-    setScore(sc);
-    setPercentage(qs.length > 0 ? Math.round((sc / qs.length) * 100) : 0);
-
-    if (meta.isCertificate === true && sc === qs.length) {
-      setShowCertLoader(true);
-      setTimeout(() => {
-        navigate('/certificate');
-      }, 3000);
-    }
-
-    // draw chart after small delay to ensure canvas exists
+  // ✅ Render Chart Function
+  const renderChart = (correct, wrong) => {
     setTimeout(() => {
-      const ctx = document.getElementById('resultChart')?.getContext('2d');
+      const ctx = document.getElementById("resultChart")?.getContext("2d");
       if (!ctx) return;
-      // destroy existing chart instance if any (safeguard)
-      // (Chart.js v3+ keeps instances internally; recreating allowed but multiple instances on same canvas may duplicate)
       new Chart(ctx, {
-        type: 'bar',
+        type: "bar",
         data: {
-          labels: ['Correct', 'Wrong'],
-          datasets: [{
-            label: 'Result',
-            data: [sc, (qs.length - sc)],
-            backgroundColor: ['#28a745', '#dc3545']
-          }]
+          labels: ["Correct", "Wrong"],
+          datasets: [
+            {
+              label: "Result",
+              data: [correct, wrong],
+              backgroundColor: ["#28a745", "#dc3545"],
+            },
+          ],
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-        }
+          scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+        },
       });
     }, 300);
-  }, [navigate]);
-
-  const handleBack = () => {
-    switch (fromPage) {
-      case 'view-results':
-        navigate('/view-results');
-        break;
-      case 'student-results':
-        navigate('/student-results');
-        break;
-      default:
-        navigate('/creator');
-    }
   };
 
-  if (showCertLoader) {
+  // ✅ Handle both sources (attempt from MyAttempts OR new quiz submission)
+  useEffect(() => {
+    const fetchQuizResult = async () => {
+      const token = localStorage.getItem("token");
+
+      // Case 1: Navigated from MyAttempts → Fetch by attemptId
+      if (attemptId) {
+        await fetchAttemptResult(attemptId);
+        return;
+      }
+
+      // Case 2: Fresh attempt result (after quiz submission)
+      try {
+        const quizAttempt = JSON.parse(localStorage.getItem("quizAttemptResult"));
+        const studentAnswers = JSON.parse(localStorage.getItem("studentAnswers")) || [];
+
+        if (!token || !quizAttempt) {
+          setErrorMsg("Missing token or quiz data.");
+          setLoading(false);
+          return;
+        }
+
+        const payload = {
+          quizId: quizAttempt.quizId,
+          userId: quizAttempt.attemptedById,
+          answers: studentAnswers,
+        };
+
+        const response = await fetch("http://localhost:3000/api/quiz/attempt-quiz", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) throw new Error(`API Error: ${response.status}`);
+        const data = await response.json();
+
+        setQuizResult(data.result);
+        setLoading(false);
+        renderChart(data.result.correctCount, data.result.wrongCount);
+      } catch (err) {
+        console.error("Error fetching result:", err);
+        setErrorMsg("Failed to load quiz results.");
+        setLoading(false);
+      }
+    };
+
+    fetchQuizResult();
+  }, [attemptId]);
+
+  const handleBack = () => navigate('/my-attempts');
+
+  if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center flex-column text-center"
-        style={{ height: '100vh', width: '100vw', backgroundColor: '#f8f9fa' }}>
-        <h2 className="fw-bold">🏆 Generating your certificate...</h2>
-        <p className="text-muted mt-2">Please wait a few seconds...</p>
+      <div className="d-flex justify-content-center align-items-center vh-100 text-center">
+        <h4>Loading Result...</h4>
       </div>
     );
   }
 
+  if (errorMsg) {
+    return (
+      <div className="d-flex flex-column justify-content-center align-items-center vh-100 text-center">
+        <h4 className="text-danger mb-3">{errorMsg}</h4>
+        <button className="btn btn-primary" onClick={handleBack}>
+          Go Back
+        </button>
+      </div>
+    );
+  }
+
+  const result = quizResult;
+  if (!result) return null;
+
   return (
-    <div className="d-flex flex-column align-items-stretch" style={{ minHeight: '100vh', width: '100vw', backgroundColor: '#f9fafe', overflowX: 'hidden' }}>
+    <div
+      className="d-flex flex-column"
+      style={{
+        minHeight: "100vh",
+        width: "100vw",
+        backgroundColor: "#f9fafe",
+        overflowX: "hidden",
+      }}
+    >
       {/* Header */}
-      <div className="text-white py-3 px-4"
+      <div
+        className="text-white py-3 px-4"
         style={{
-          background: 'linear-gradient(to right, #015794, #437FAA)',
-          borderBottomLeftRadius: '60px',
-          borderBottomRightRadius: '60px'
-        }}>
+          background: "linear-gradient(to right, #015794, #437FAA)",
+          borderBottomLeftRadius: "60px",
+          borderBottomRightRadius: "60px",
+        }}
+      >
         <div className="d-flex justify-content-between align-items-center w-100">
-          <img src={logo} alt="Quizze Logo" style={{ width: '140px' }} />
+          <img src={logo} alt="Quizze Logo" style={{ width: "140px" }} />
           <h4 className="mb-0 fw-bold">Quiz Result</h4>
-          <button className="btn btn-light" onClick={handleBack}>Back</button>
+          <button className="btn btn-light" onClick={handleBack}>
+            Back
+          </button>
         </div>
       </div>
 
       {/* Summary */}
-      <div className="text-center mt-4 px-3" style={{ width: '100%' }}>
-        <h2 className="fw-bold">{quizMeta.title || 'Quiz Title'}</h2>
-        <p className="text-muted">{quizMeta.description}</p>
-        <h5>Your Score: <span className="text-success">{score}</span> / {questions.length}</h5>
-        <h6>Percentage: <strong>{percentage}%</strong></h6>
+      <div className="text-center mt-4 px-3">
+        <h2 className="fw-bold">{result.quizTitle || "Quiz Title"}</h2>
+        <p className="text-muted mb-1">
+          Attempted by: <strong>{result.attemptedByName}</strong>
+        </p>
+        <h5>
+          Your Score: <span className="text-success">{result.score.toFixed(2)}%</span>
+        </h5>
+        <h6>
+          Correct: <strong className="text-success">{result.correctCount}</strong>{" "}
+          | Wrong: <strong className="text-danger">{result.wrongCount}</strong>
+        </h6>
       </div>
 
       {/* Chart */}
-      <div className="mx-auto mt-4 mb-4" style={{ width: '100%', maxWidth: '800px', height: '320px' }}>
+      <div className="mx-auto mt-4 mb-4" style={{ width: "100%", maxWidth: "800px", height: "320px" }}>
         <canvas id="resultChart" height="320"></canvas>
       </div>
 
       {/* Questions */}
-      <div className="px-4 mb-5 w-100" style={{ maxWidth: '1200px', margin: '0 auto', flexGrow: 1 }}>
-        {questions.map((q, index) => {
-          const userAnswer = answers[index];
-          let isCorrect = false;
-
-          // Determine correctness for rendering
-          if (q.type === 'match' || q.type === 'match-the-following' || q.type === 'match-the following') {
-            const expected = q.pairs ?? q.options ?? [];
-            isCorrect = Array.isArray(expected) && expected.length > 0 &&
-              expected.every((pair, i) => normalize(userAnswer?.[i]) === normalize(pair.right));
-          } else if (q.type === 'mcq' || q.type === 'multiple-choice') {
-            // compute selected and correct text
-            const selectedText = (() => {
-              if (!userAnswer) return '';
-              if (typeof userAnswer === 'string' && /^[A-Z]$/i.test(userAnswer.trim())) {
-                const idx = userAnswer.trim().toUpperCase().charCodeAt(0) - 65;
-                return q.options?.[idx] ?? userAnswer;
-              }
-              return userAnswer;
-            })();
-            const correctVal = q.correctAnswer ?? q.correct ?? null;
-            let correctText;
-            if (typeof correctVal === 'string' && /^[A-Z]$/i.test(correctVal.trim())) {
-              const idx = correctVal.trim().toUpperCase().charCodeAt(0) - 65;
-              correctText = q.options?.[idx] ?? correctVal;
-            } else {
-              correctText = correctVal;
-            }
-            isCorrect = normalize(selectedText) === normalize(correctText);
-          } else if (q.type === 'truefalse' || q.type === 'true-false') {
-            isCorrect = normalize(userAnswer) === normalize(q.correctAnswer ?? q.correct);
-          } else {
-            isCorrect = normalize(userAnswer) === normalize(q.correctAnswer ?? q.correct);
-          }
-
-          // Prepare display values
-          const displayUser = (() => {
-            if (q.type === 'mcq' || q.type === 'multiple-choice') return getSelectedTextForMCQ(q, userAnswer) || <em>Not Answered</em>;
-            if (q.type === 'match' || q.type === 'match-the-following') return null;
-            return userAnswer ?? <em>Not Answered</em>;
-          })();
-
-          const displayCorrect = (() => {
-            if (q.type === 'mcq' || q.type === 'multiple-choice') return getCorrectTextForMCQ(q);
-            if (q.type === 'match' || q.type === 'match-the-following') return null;
-            return q.correctAnswer ?? q.correct ?? '';
-          })();
-
-          return (
-            <div key={index} className="card mb-3 shadow-sm">
-              <div className="card-body">
-                <h5 className="fw-bold mb-2">Q{index + 1}: {q.question || q.questionText}</h5>
-
-                {q.type === 'match' || q.type === 'match-the-following' ? (
-                  <>
-                    <p className="fw-bold">Your Matches:</p>
-                    {(q.pairs ?? q.options ?? []).map((pair, i) => (
-                      <div key={i} className="row mb-1 align-items-center">
-                        <div className="col-sm-5">🔹 <strong>{pair.left}</strong></div>
-                        <div className="col-sm-7">
-                          ➡ <span className={normalize(userAnswer?.[i]) === normalize(pair.right) ? 'text-success' : 'text-danger'}>
-                            {userAnswer?.[i] || 'Not Answered'}{" "}
-                            {normalize(userAnswer?.[i]) === normalize(pair.right)
-                              ? '✅'
-                              : `❌ (Correct: ${pair.right})`}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </>
+      <div className="px-4 mb-5 flex-grow-1" style={{ overflowY: "auto" }}>
+        {result.questionResults?.map((q, index) => (
+          <div key={index} className="card mb-3 shadow-sm">
+            <div className="card-body">
+              <h5 className="fw-bold mb-2">
+                Q{index + 1}: {q.questionText}
+              </h5>
+              <p>
+                <strong>Your Answer:</strong>{" "}
+                <span className={q.isCorrect ? "text-success" : "text-danger"}>
+                  {q.userAnswer
+                    ? Array.isArray(q.userAnswer)
+                      ? q.userAnswer.map((p) => `${p.left} → ${p.right}`).join(", ")
+                      : q.userAnswer
+                    : "Not Answered"}
+                </span>
+              </p>
+              <p>
+                <strong>Correct Answer:</strong>{" "}
+                {Array.isArray(q.correctAnswer)
+                  ? q.correctAnswer.map((p) => `${p.left} → ${p.right}`).join(", ")
+                  : q.correctAnswer || "N/A"}
+              </p>
+              <div className="mt-2">
+                {q.isCorrect ? (
+                  <span className="badge bg-success">Correct</span>
                 ) : (
-                  <>
-                    <p className="mb-1">
-                      <strong>Your Answer:</strong>{" "}
-                      <span className={isCorrect ? 'text-success' : 'text-danger'}>
-                        {displayUser}
-                      </span>
-                    </p>
-                    <p><strong>Correct Answer:</strong> {displayCorrect || <em>Not Provided</em>}</p>
-                  </>
+                  <span className="badge bg-danger">Incorrect</span>
                 )}
-
-                <div className="mt-2">
-                  {isCorrect
-                    ? <span className="badge bg-success">Correct</span>
-                    : <span className="badge bg-danger">Incorrect</span>}
-                </div>
               </div>
             </div>
-          );
-        })}
-      </div>  
+          </div>
+        ))}
+      </div>
 
       {/* Footer */}
       <footer className="text-center text-muted py-3 bg-light mt-auto w-100">

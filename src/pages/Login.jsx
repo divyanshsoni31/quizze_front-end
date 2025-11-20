@@ -32,11 +32,12 @@ export default function Login() {
       }
 
       // ✅ Save to localStorage
-      localStorage.setItem('token', `Bearer ${token}`);
-      localStorage.setItem('userEmail', user.email);
-      localStorage.setItem('userRole', user.role);
-      localStorage.setItem('userName', `${user.firstname} ${user.lastname}`);
-      localStorage.setItem('userId', user.userId);
+      // ✅ Save to sessionStorage (Fix multi-tab issue)
+      sessionStorage.setItem('token', `Bearer ${token}`);
+      sessionStorage.setItem('userEmail', user.email);
+      sessionStorage.setItem('userRole', user.role);
+      sessionStorage.setItem('userName', `${user.firstname} ${user.lastname}`);
+      sessionStorage.setItem('userId', user.userId);
 
       // ✅ Redirect based on role
       navigate(user.role === 'student' ? '/student' : '/creator');
@@ -106,6 +107,10 @@ export default function Login() {
 
           <p className="text-center mt-3">
             Don't have an account? <a href="/register">Register</a>
+          </p>
+
+          <p className="text-center mt-3">
+            <a href="/forgetPassword">Forget Password?</a>
           </p>
         </form>
       </div>

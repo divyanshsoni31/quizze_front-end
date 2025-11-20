@@ -1,4 +1,3 @@
-// File: src/pages/AttemptQuiz.jsx
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
@@ -10,14 +9,15 @@ export default function AttemptQuiz() {
   const [answers, setAnswers] = useState({});
   const [timeLeft, setTimeLeft] = useState(0);
   const [scrollProgress, setScrollProgress] = useState(0);
-  const submittedRef = useRef(false); // prevent double submit
+  const [isSubmitting, setIsSubmitting] = useState(false); // ✅ new guard
+  const submittedRef = useRef(false); // ✅ prevents duplicate submission
 
   // Normalize incoming question shapes into a predictable format
   const normalizeQuestions = (rawQs = []) => {
     return rawQs.map((q) => {
       const typeMap = {
         'match-the-following': 'match',
-        'match-the following': 'match', // defensive
+        'match-the following': 'match',
         match: 'match',
         mcq: 'mcq',
         'multiple-choice': 'mcq',
@@ -28,23 +28,19 @@ export default function AttemptQuiz() {
       };
 
       const normalizedType = typeMap[q.type] || (q.pairs ? 'match' : q.type);
-
-      // For match questions the pairs may be in `pairs` or `pairs` or `options`
-      const pairs = q.pairs || q.pairs || q.options?.pairs || q.options || (q.type === 'match' && q.options) || [];
+      const pairs = q.pairs || q.options?.pairs || q.options || [];
 
       return {
-        // stable fields used by rendering & scoring
         id: q._id || q.id || Date.now() + Math.random(),
         type: normalizedType,
         question: q.questionText || q.question || q.title || '',
         options: normalizedType === 'match' ? (pairs.map ? pairs : []) : (q.options || q.choices || []),
-        // correctAnswer can be in different shapes; preserve as-is
         correctAnswer: q.correctAnswer ?? q.answer ?? (normalizedType === 'match' ? pairs : undefined),
       };
     });
   };
 
-  // Load quiz data from localStorage (set by JoinQuiz flow)
+  // Load quiz data
   useEffect(() => {
     const meta = JSON.parse(localStorage.getItem('finalQuizMeta')) || {};
     const qsRaw = JSON.parse(localStorage.getItem('finalQuizQuestions')) || [];
@@ -60,11 +56,11 @@ export default function AttemptQuiz() {
       handleSubmit(true);
       return;
     }
-    const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+    const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
     return () => clearInterval(timer);
   }, [timeLeft, questions]);
 
-  // Prevent browser back — auto-submit if they try to leave
+  // Prevent browser back
   useEffect(() => {
     const handlePopState = () => {
       if (!submittedRef.current && questions.length > 0) {
@@ -82,7 +78,7 @@ export default function AttemptQuiz() {
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
-  // Scroll progress bar
+  // Scroll progress
   useEffect(() => {
     const handleScroll = () => {
       const scrollTop = document.documentElement.scrollTop;
@@ -94,127 +90,125 @@ export default function AttemptQuiz() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // handle change for regular answers (mcq, truefalse, fill)
   const handleChange = (qIndex, value) => {
-    setAnswers(prev => ({ ...prev, [qIndex]: value }));
+    setAnswers((prev) => ({ ...prev, [qIndex]: value }));
   };
 
-  // Special handler for match answers (object mapping pairIndex -> selectedRight)
   const handleMatchChange = (qIndex, pairIndex, value) => {
-    setAnswers(prev => {
+    setAnswers((prev) => {
       const current = prev[qIndex] || {};
       return { ...prev, [qIndex]: { ...current, [pairIndex]: value } };
     });
   };
 
-  // Prepare shuffled options for match-right-sides (so dropdowns are randomized per user)
   const shuffledOptions = useMemo(() => {
     const map = {};
     questions.forEach((q, i) => {
       if (q.type === 'match') {
-        const rights = (q.options || []).map(p => p.right ?? p).filter(Boolean);
-        // shuffle
+        const rights = (q.options || []).map((p) => p.right ?? p).filter(Boolean);
         map[i] = [...rights].sort(() => Math.random() - 0.5);
       }
     });
     return map;
   }, [questions]);
 
-  // Submission & scoring
-  const handleSubmit = (auto = false) => {
-    if (submittedRef.current) return;
+  // ✅ FINAL FIXED handleSubmit FUNCTION
+  const handleSubmit = async (auto = false) => {
+    // Prevent duplicate submission immediately
+    if (submittedRef.current || isSubmitting) {
+      console.warn("⛔ Duplicate submission prevented");
+      return;
+    }
     submittedRef.current = true;
+    setIsSubmitting(true);
 
-    if (!auto) {
-      const unanswered = questions.some((q, i) => {
-        if (q.type === 'match') {
-          const a = answers[i];
-          return !a || Object.values(a).some(v => !v);
-        }
-        return answers[i] === undefined || answers[i] === '';
-      });
+    try {
+      const finalQuizMeta = JSON.parse(localStorage.getItem("finalQuizMeta") || "{}");
+      const quizId = finalQuizMeta.code || finalQuizMeta._id || finalQuizMeta.id;
+      const userId = sessionStorage.getItem("userId");
+      const token = sessionStorage.getItem("token");
 
-      if (unanswered && !window.confirm('Some questions are unanswered. Submit anyway?')) {
+      if (!quizId || !userId) {
+        alert("Missing quiz or user information.");
         submittedRef.current = false;
+        setIsSubmitting(false);
         return;
       }
-    }
 
-    // persist student answers locally
-    localStorage.setItem('studentAnswers', JSON.stringify(answers));
-
-    const studentEmail = localStorage.getItem('userEmail') || 'anonymous';
-    const studentName =
-      localStorage.getItem('userFullName') ||
-      `${(localStorage.getItem('firstName') || '').trim()} ${(localStorage.getItem('lastName') || '').trim()}`.trim() ||
-      'Anonymous';
-
-    // scoring strategy: try to be robust depending on available correctAnswer shape
-    let score = 0;
-    const normalize = str => (str ?? '').toString().trim().replace(/\s+/g, '').toLowerCase();
-
-    questions.forEach((q, i) => {
-      const userAns = answers[i];
-      const correct = q.correctAnswer;
-
-      if (q.type === 'match') {
-        // correct might be array of pairs [{left,right}] or object mapping
-        const expectedPairs = Array.isArray(correct) ? correct : q.options;
-        if (!expectedPairs || expectedPairs.length === 0 || !userAns) return;
-
-        let matched = 0;
-        expectedPairs.forEach((pair, j) => {
-          const expectedRight = (pair.right ?? pair) || '';
-          const provided = userAns?.[j] ?? '';
-          if (normalize(provided) === normalize(expectedRight)) matched++;
-        });
-        if (matched === expectedPairs.length) score++;
-      } else if (q.type === 'fill') {
-        if (!userAns || !correct) return;
-        if (normalize(userAns) === normalize(correct)) score++;
-      } else {
-        // mcq / truefalse
-        if (!userAns || correct === undefined) return;
-        // correct may be letter 'A'/'B' or the option value itself; handle both:
-        const correctLetter = typeof correct === 'string' && /^[A-Z]$/i.test(correct) ? correct.toUpperCase() : null;
-        if (correctLetter) {
-          if (userAns === correctLetter) score++;
+      const formattedAnswers = questions.map((q, index) => {
+        if (q.type === "match") {
+          const selectedPairs = (q.options || []).map((pair, i) => ({
+            left: pair.left ?? pair.l ?? "",
+            right: answers[index]?.[i] || "",
+          }));
+          return { questionId: q.id, type: q.type, selectedPairs };
+        } else if (q.type === "mcq") {
+          const letter = answers[index];
+          const optionIndex = letter ? letter.charCodeAt(0) - 65 : -1;
+          const actualAnswer = q.options?.[optionIndex] || "";
+          return {
+            questionId: q.id,
+            type: q.type,
+            selectedAnswer: actualAnswer,
+          };
         } else {
-          // compare normalized option text
-          // find the option text corresponding to user's selected letter (A/B/C...)
-          const optIndex = (userAns && userAns.length === 1 && /[A-Z]/i.test(userAns)) ? userAns.charCodeAt(0) - 65 : null;
-          const selectedText = (optIndex !== null && q.options && q.options[optIndex]) ? q.options[optIndex] : userAns;
-          if (normalize(selectedText) === normalize(correct)) score++;
+          return {
+            questionId: q.id,
+            type: q.type,
+            selectedAnswer: answers[index] || "",
+          };
+        }
+      });
+
+      localStorage.setItem("studentAnswers", JSON.stringify(formattedAnswers));
+
+      if (!auto) {
+        const unanswered = formattedAnswers.some((a) => {
+          if (a.type === "match") return a.selectedPairs.some((p) => !p.right);
+          return !a.selectedAnswer;
+        });
+
+        if (unanswered && !window.confirm("Some questions are unanswered. Submit anyway?")) {
+          submittedRef.current = false;
+          setIsSubmitting(false);
+          return;
         }
       }
-    });
 
-    const attemptKey = `attemptedResults_${quizMeta.code || quizMeta.quizId || quizMeta.id || 'unknown'}`;
-    const existing = JSON.parse(localStorage.getItem(attemptKey)) || [];
+      console.log("🚀 Submitting quiz attempt...");
+      const response = await fetch("http://localhost:3000/api/quiz/attempt-quiz", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token,
+        },
+        body: JSON.stringify({ quizId, userId, answers: formattedAnswers }),
+      });
 
-    const newAttempt = {
-      quizCode: quizMeta.code || quizMeta.quizId || quizMeta.id || 'unknown',
-      studentEmail,
-      studentName,
-      role: localStorage.getItem('userRole') || 'student',
-      score,
-      total: questions.length,
-      percentage: questions.length > 0 ? Math.round((score / questions.length) * 100) : 0,
-      attemptedAt: new Date().toISOString(),
-      answers,
-      questions,
-      quizMeta,
-    };
+      const data = await response.json();
+      if (!response.ok) {
+        console.error("Backend Error:", data);
+        alert(data.error || "Failed to submit quiz.");
+        submittedRef.current = false;
+        setIsSubmitting(false);
+        return;
+      }
 
-    const updated = [...existing.filter(r => r.studentEmail !== studentEmail), newAttempt];
-    localStorage.setItem(attemptKey, JSON.stringify(updated));
+      console.log("✅ Quiz submitted successfully:", data);
+      localStorage.setItem("quizAttemptResult", JSON.stringify(data.result));
 
-    navigate('/result');
+      // Delay navigation to ensure storage completes
+      setTimeout(() => navigate("/my-attempts"), 300);
+    } catch (error) {
+      console.error("Error submitting quiz:", error);
+      alert("An error occurred while submitting the quiz.");
+      submittedRef.current = false;
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="d-flex flex-column" style={{ minHeight: '100vh', width: '100vw', backgroundColor: '#f9fafe' }}>
-      {/* Scroll progress bar */}
       <div style={{
         height: '5px',
         background: '#00004d',
@@ -224,8 +218,6 @@ export default function AttemptQuiz() {
         left: 0,
         zIndex: 100
       }} />
-
-      {/* Header */}
       <div className="text-white py-3 px-4" style={{
         background: 'linear-gradient(to right, #015794, #437FAA)',
         borderBottomLeftRadius: '60px',
@@ -238,13 +230,11 @@ export default function AttemptQuiz() {
         </div>
       </div>
 
-      {/* Meta */}
       <div className="container mt-3 text-center">
         <p className="text-muted">{quizMeta.description || 'No description provided.'}</p>
         <p className="fw-bold">Total Questions: {questions.length}</p>
       </div>
 
-      {/* Questions - simplified layout (no cards) */}
       <div className="container my-4 flex-grow-1">
         {questions.map((q, index) => (
           <div key={q.id || index} style={{ marginBottom: '1.25rem' }}>
@@ -253,7 +243,6 @@ export default function AttemptQuiz() {
               <span>{q.question}</span>
             </div>
 
-            {/* MCQ */}
             {q.type === 'mcq' && Array.isArray(q.options) && (
               <div style={{ marginTop: '0.5rem', paddingLeft: '1rem' }}>
                 {q.options.map((opt, i) => {
@@ -278,7 +267,6 @@ export default function AttemptQuiz() {
               </div>
             )}
 
-            {/* True/False */}
             {q.type === 'truefalse' && (
               <div style={{ marginTop: '0.5rem', paddingLeft: '1rem' }}>
                 {['True', 'False'].map((val, i) => (
@@ -298,7 +286,6 @@ export default function AttemptQuiz() {
               </div>
             )}
 
-            {/* Fill in the blank */}
             {q.type === 'fill' && (
               <div style={{ marginTop: '0.5rem', paddingLeft: '1rem' }}>
                 <input
@@ -311,7 +298,6 @@ export default function AttemptQuiz() {
               </div>
             )}
 
-            {/* Match the Following (interactive dropdowns) */}
             {q.type === 'match' && Array.isArray(q.options) && (
               <div style={{ marginTop: '0.5rem', paddingLeft: '0.25rem' }}>
                 <div className="fw-bold mb-2">Match the Following</div>
@@ -349,9 +335,15 @@ export default function AttemptQuiz() {
         ))}
       </div>
 
-      {/* Submit */}
+      {/* ✅ Disable submit button when already submitting */}
       <div className="text-center mb-4">
-        <button className="btn btn-primary px-5 py-2" onClick={() => handleSubmit(false)}>Submit Quiz</button>
+        <button
+          className="btn btn-primary px-5 py-2"
+          onClick={() => handleSubmit(false)}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Submitting..." : "Submit Quiz"}
+        </button>
       </div>
 
       <footer className="text-center text-muted py-3 bg-light mt-auto w-100">

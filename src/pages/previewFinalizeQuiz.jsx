@@ -13,7 +13,7 @@ export default function ViewFinalQuiz() {
     useEffect(() => {
     const fetchQuiz = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
       if (!id) {
         console.error("❌ No quizId found in URL");
         return;

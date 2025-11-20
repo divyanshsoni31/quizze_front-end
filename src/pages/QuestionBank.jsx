@@ -5,7 +5,7 @@ import logo from '../assets/logo.png';
 
 export default function QuestionBank() {
   const navigate = useNavigate();
-  const userEmail = localStorage.getItem('userEmail')?.toLowerCase().trim();
+  const userEmail = sessionStorage.getItem('userEmail')?.toLowerCase().trim();
   const [questions, setQuestions] = useState([]);
   const [filteredQuestions, setFilteredQuestions] = useState([]);
   const [selectedQuestions, setSelectedQuestions] = useState([]);

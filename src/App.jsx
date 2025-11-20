@@ -24,6 +24,12 @@ import StudentResults from './pages/StudentResults';
 import ProtectedRoute from './components/ProtectedRoute';
 import Certificate from './pages/Certificate';
 
+import AllAttempter from './pages/AllAttempter'
+
+import MyAttempts from './pages/MyAttempts'
+
+import ForgotPassword from './pages/ForgetPassword';
+
 function App() {
   return (
     <BrowserRouter>
@@ -33,6 +39,7 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/verify" element={<OtpVerification />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/forgetPassword" element={<ForgotPassword />}/>
 
         {/* 👨‍🎓 Protected: Student Only */}
         <Route
@@ -144,6 +151,31 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/my-attempts"
+          element={
+            <ProtectedRoute role="creator">
+              <MyAttempts />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/QuizAttemptedByStudents/:quizId"
+          element={
+            <ProtectedRoute role="creator">
+              <AllAttempter />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/forgetPassword"
+          element={
+              <ForgotPassword />
+          }
+        />
+
 
         {/* 🚫 Optional: Not Authorized Page */}
         {/* <Route path="/not-authorized" element={<NotAuthorized />} /> */}

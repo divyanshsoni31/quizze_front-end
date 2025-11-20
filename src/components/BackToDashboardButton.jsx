@@ -23,7 +23,7 @@ export default function BackToDashboardButton({ text = "Dashboard", className = 
   const navigate = useNavigate();
 
   const goToDashboard = () => {
-    const role = localStorage.getItem('userRole');
+    const role = sessionStorage.getItem('userRole');
     navigate(role === 'creator' ? '/creator' : '/student');
   };
 

@@ -4,7 +4,7 @@ import logo from '../assets/logo.png';
 
 export default function ManageQuiz() {
   const navigate = useNavigate();
-  const token = localStorage.getItem('token'); // 👈 JWT saved during login
+  const token = sessionStorage.getItem('token'); // 👈 JWT saved during login
   const [quizzes, setQuizzes] = useState([]);
   const [filteredQuizzes, setFilteredQuizzes] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');

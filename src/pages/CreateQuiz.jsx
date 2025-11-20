@@ -5,6 +5,7 @@ import bulb1 from '../assets/icon-bulb1.png';
 import pencil1 from '../assets/icon-pencil1.png';
 import trophy1 from '../assets/icon-trophy1.png';
 import question1 from '../assets/icon-question1.png';
+
 export default function CreateQuiz() {
   const navigate = useNavigate();
   const [questionType, setQuestionType] = useState('');
@@ -18,7 +19,7 @@ export default function CreateQuiz() {
     customSubject: '',
     timeLimit: '',
     difficulty: '',
-    isCertificate: false, // ✅ New field
+    isCertificate: false,
   });
 
   const [currentQuestion, setCurrentQuestion] = useState({
@@ -33,7 +34,6 @@ export default function CreateQuiz() {
 
     if (isReset === 'true') {
       localStorage.removeItem('quizReset');
-
       setQuizMeta({
         title: '',
         description: '',
@@ -52,7 +52,6 @@ export default function CreateQuiz() {
         correctAnswer: ''
       });
 
-      // 🧹 Clear all temp and final storage
       localStorage.removeItem('tempQuizMeta');
       localStorage.removeItem('tempQuestions');
       localStorage.removeItem('finalQuizMeta');
@@ -60,10 +59,9 @@ export default function CreateQuiz() {
       localStorage.removeItem('createdQuizMeta');
       localStorage.removeItem('createdQuizQuestions');
 
-      return; // ⛔️ Prevent further execution
+      return;
     }
 
-    // Only runs if not resetting
     const storedQuestions = localStorage.getItem('selectedQuestionBankQuestions');
     if (storedQuestions) {
       const parsed = JSON.parse(storedQuestions);
@@ -88,9 +86,6 @@ export default function CreateQuiz() {
     }
   }, []);
 
-
-
-
   const handleMetaChange = (e) => {
     const { name, value, type, checked } = e.target;
     setQuizMeta(prev => ({
@@ -99,24 +94,33 @@ export default function CreateQuiz() {
     }));
   };
 
+  // ======================= ⭐ FIXED MCQ ANSWER ISSUE HERE ⭐ =======================
   const handleAddQuestion = () => {
     if (!currentQuestion.question || (currentQuestion.type !== 'match' && !currentQuestion.correctAnswer)) {
       alert('Fill all question fields');
       return;
     }
 
-    const creatorEmail = localStorage.getItem('userEmail');
+    // Convert MCQ "A/B/C/D" into actual option text
+    let finalCorrectAnswer = currentQuestion.correctAnswer;
+
+    if (currentQuestion.type === "mcq") {
+      const indexMap = { A: 0, B: 1, C: 2, D: 3 };
+      finalCorrectAnswer = currentQuestion.options[indexMap[currentQuestion.correctAnswer]];
+    }
+
+    const creatorEmail = sessionStorage.getItem('userEmail');
     const questionWithMeta = {
       ...currentQuestion,
       id: Date.now(),
       ownerEmail: creatorEmail,
       type: currentQuestion.type === 'match' ? 'match-the-following' : currentQuestion.type,
+      correctAnswer: finalCorrectAnswer,
       ...(currentQuestion.type === 'match' && {
         pairs: [...currentQuestion.options],
         correctAnswer: [...currentQuestion.options]
       })
     };
-
 
     setQuestions(prev => [...prev, questionWithMeta]);
 
@@ -129,6 +133,7 @@ export default function CreateQuiz() {
     setCurrentQuestion({ type: '', question: '', options: [], correctAnswer: '' });
     setQuestionType('');
   };
+  // ===============================================================================
 
   const handleCreateQuiz = () => {
     const subjectFinal = quizMeta.subject === 'Other' ? quizMeta.customSubject : quizMeta.subject;
@@ -201,6 +206,7 @@ export default function CreateQuiz() {
             </select>
           </>
         );
+
       case 'truefalse':
         return (
           <>
@@ -217,6 +223,7 @@ export default function CreateQuiz() {
             </select>
           </>
         );
+
       case 'fill':
         return (
           <>
@@ -231,6 +238,7 @@ export default function CreateQuiz() {
             />
           </>
         );
+
       case 'match':
         return (
           <>
@@ -284,6 +292,7 @@ export default function CreateQuiz() {
             <h6 className="text-muted">Write correct pairs — they will shuffle later.</h6>
           </>
         );
+
       default:
         return null;
     }
@@ -291,13 +300,12 @@ export default function CreateQuiz() {
 
   return (
     <div className="position-relative d-flex flex-column" style={{ minHeight: '100vh', width: '100vw', backgroundColor: '#f8f9fa' }}>
-      {/* Decorative UI Icons */}
+      
       <img src={pencil1} alt="Pencil" className="position-absolute" style={{ top: '19%', left: '0%', width: '205px', transform: 'rotate(118deg)', zIndex: 0 }} />
       <img src={trophy1} alt="Trophy" className="position-absolute" style={{ bottom: '0%', left: '1%', width: '205px', transform: 'rotate(7deg)', zIndex: 0 }} />
       <img src={question1} alt="Question" className="position-absolute" style={{ bottom: '1%', left: '92.5%', transform: 'translateX(-49%) rotate(-2deg)', width: '210px', zIndex: 0 }} />
       <img src={bulb1} alt="Bulb" className="position-absolute" style={{ bottom: '64%', right: '20%', width: '100px', transform: 'rotate(5deg)', zIndex: 0 }} />
 
-      {/* Header */}
       <div className="text-white px-4 pt-3 pb-4" style={{ background: 'linear-gradient(to right, #015794, #437FAA)', borderBottomLeftRadius: '60px', borderBottomRightRadius: '60px', zIndex: 1 }}>
         <div className="container d-flex justify-content-between align-items-center">
           <img src={logo} alt="Logo" style={{ width: '140px' }} />
@@ -308,8 +316,6 @@ export default function CreateQuiz() {
           <p className="lead">Fill out the form below to create your quiz</p>
         </div>
       </div>
-
-      {/* Form */}
 
       <div className="container-fluid my-5 px-5" style={{ position: 'relative', zIndex: 1 }}>
         <form onSubmit={(e) => e.preventDefault()}>
@@ -360,7 +366,6 @@ export default function CreateQuiz() {
                 }}
                 required
               />
-
             </div>
 
             <div className="col-md-4 mb-3">
@@ -379,7 +384,6 @@ export default function CreateQuiz() {
             </div>
           </div>
 
-          {/* Question Bank Toggle */}
           <div className="form-check form-switch mb-3">
             <input
               className="form-check-input"
@@ -389,7 +393,6 @@ export default function CreateQuiz() {
                 const newState = !useQuestionBank;
                 setUseQuestionBank(newState);
                 if (newState) {
-                  // ✅ Save current quiz state before navigating away
                   localStorage.setItem('tempQuizMeta', JSON.stringify(quizMeta));
                   localStorage.setItem('tempQuestions', JSON.stringify(questions));
                   navigate('/question-bank');

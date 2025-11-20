@@ -41,7 +41,7 @@ export default function CreatorDashboard() {
 
     <div className="d-flex gap-2 flex-wrap justify-content-end">
       {/* ✅ New Button: View My Quiz Attempts as Creator */}
-      <button className="btn btn-outline-light fw-bold" onClick={() => navigate('/student-results')}>
+      <button className="btn btn-outline-light fw-bold" onClick={() => navigate('/my-attempts')}>
         My Attempts
       </button>
 

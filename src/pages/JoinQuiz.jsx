@@ -25,7 +25,7 @@ export default function JoinQuiz() {
     setError('');
 
     try {
-      const token = localStorage.getItem('token')?.trim();
+      const token = sessionStorage.getItem('token')?.trim();
       if (!token) {
         setError('❌ No token found. Please login again.');
         setLoading(false);

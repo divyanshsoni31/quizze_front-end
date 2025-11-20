@@ -34,9 +34,9 @@ export default function PreviewQuiz() {
 
   const handleFinalize = async () => {
   try {
-    const creatorEmail = localStorage.getItem("userEmail");
-    const userId = localStorage.getItem("userId");
-    const token = localStorage.getItem("token");   // 🔑 JWT token
+    const creatorEmail = sessionStorage.getItem("userEmail");
+    const userId = sessionStorage.getItem("userId");
+    const token = sessionStorage.getItem("token");   // 🔑 JWT token
     const quizMeta = JSON.parse(localStorage.getItem("createdQuizMeta"));
     const questions = JSON.parse(localStorage.getItem("createdQuizQuestions")) || [];
 
